@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { FaceLandmarkDetector } from '@/lib/ar/core/FaceLandmarkDetector';
-import { GlassesRenderer } from '@/lib/ar/renderers/GlassesRenderer';
+import { createRenderer } from '@/lib/ar/ProductRegistry';
 import type {
   AREngineState,
   ARSettings,
@@ -32,6 +32,7 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
   const settingsRef = useRef<ARSettings>(DEFAULT_AR_SETTINGS);
   const productRef = useRef<ARProduct | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
 
@@ -85,6 +86,7 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
         updateState({ isLoading: true, error: null });
 
         videoRef.current = video;
+        canvasRef.current = canvas;
 
         if (!detectorRef.current) {
           detectorRef.current = new FaceLandmarkDetector(config);
@@ -96,12 +98,12 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
 
         updateState({ isModelLoaded: true });
 
-        if (!rendererRef.current) {
-          rendererRef.current = new GlassesRenderer();
-        }
-        rendererRef.current.init(canvas);
-
         if (productRef.current) {
+          if (rendererRef.current) {
+            rendererRef.current.dispose();
+          }
+          rendererRef.current = createRenderer(productRef.current);
+          rendererRef.current.init(canvas);
           await rendererRef.current.setProduct(productRef.current);
         }
 
@@ -133,7 +135,21 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
   }, [updateState]);
 
   const setProduct = useCallback(async (product: ARProduct) => {
+    const previousProduct = productRef.current;
     productRef.current = product;
+
+    const needNewRenderer =
+      !rendererRef.current ||
+      previousProduct?.type !== product.type ||
+      Boolean(previousProduct?.modelUrl) !== Boolean(product.modelUrl);
+
+    if (needNewRenderer && canvasRef.current) {
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
+      rendererRef.current = createRenderer(product);
+      rendererRef.current.init(canvasRef.current);
+    }
 
     if (rendererRef.current) {
       try {

@@ -3,4 +3,9 @@ export * from './types';
 export { FaceLandmarkDetector } from './core/FaceLandmarkDetector';
 
 export { BaseRenderer } from './renderers/BaseRenderer';
-export { GlassesRenderer } from './renderers/GlassesRenderer';
+export { CompositeRenderer } from './renderers/CompositeRenderer';
+
+export * from './loaders';
+export * from './transforms';
+
+export { ProductRegistry, createRenderer, type ARRenderMode, type ProductConfig } from './ProductRegistry';
