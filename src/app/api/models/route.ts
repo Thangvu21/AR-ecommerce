@@ -49,17 +49,14 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Upload 3D model to Cloudinary (Secondary Account)
         const uploadResult = await uploadModelToCloudinary(file);
 
-        // Upload thumbnail if provided
         let thumbnailData: { url: string; publicId: string } | null = null;
         if (thumbnailFile) {
             const { uploadImageToCloudinary } = await import('@/lib/cloudinarySecondary');
             thumbnailData = await uploadImageToCloudinary(thumbnailFile);
         }
 
-        // Save to Database
         const newModel = await Model3D.create({
             name,
             type: type || 'other',

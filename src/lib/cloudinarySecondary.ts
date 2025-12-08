@@ -89,5 +89,18 @@ export const uploadImageToCloudinary = async (
     }
 };
 
+export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
+    try {
+        await cloudinarySecondary.uploader.destroy(publicId, {
+            resource_type: 'auto',
+            invalidate: true,
+        });
+    } catch (error) {
+        console.error('Cloudinary delete error:', error);
+        // Don't throw error - allow update to continue even if delete fails
+    }
+};
+
 
 export default cloudinarySecondary;
+

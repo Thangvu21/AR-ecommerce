@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Upload, Loader2, Trash2 } from 'lucide-react';
+import { Upload, Loader2, Trash2, Edit, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface Model3D {
@@ -26,6 +26,17 @@ export default function ModelsPage() {
     const [file, setFile] = useState<File | null>(null);
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+
+    // Edit modal states
+    const [editingModel, setEditingModel] = useState<Model3D | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editFormData, setEditFormData] = useState({
+        name: '',
+        type: 'glasses',
+    });
+    const [editFile, setEditFile] = useState<File | null>(null);
+    const [editThumbnailFile, setEditThumbnailFile] = useState<File | null>(null);
+    const [editThumbnailPreview, setEditThumbnailPreview] = useState<string | null>(null);
 
     useEffect(() => {
         fetchModels();
@@ -109,6 +120,102 @@ export default function ModelsPage() {
             toast.error('Upload failed');
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleEditClick = (model: Model3D) => {
+        setEditingModel(model);
+        setEditFormData({
+            name: model.name,
+            type: model.type,
+        });
+        setEditThumbnailPreview(model.thumbnailUrl || null);
+        setShowEditModal(true);
+    };
+
+    const handleCloseEditModal = () => {
+        setShowEditModal(false);
+        setEditingModel(null);
+        setEditFormData({ name: '', type: 'glasses' });
+        setEditFile(null);
+        setEditThumbnailFile(null);
+        setEditThumbnailPreview(null);
+    };
+
+    const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setEditFile(e.target.files[0]);
+        }
+    };
+
+    const handleEditThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setEditThumbnailFile(file);
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setEditThumbnailPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingModel) return;
+
+        setUploading(true);
+        const data = new FormData();
+        data.append('name', editFormData.name);
+        data.append('type', editFormData.type);
+        if (editFile) {
+            data.append('file', editFile);
+        }
+        if (editThumbnailFile) {
+            data.append('thumbnail', editThumbnailFile);
+        }
+
+        try {
+            const res = await fetch(`/api/models/${editingModel._id}`, {
+                method: 'PATCH',
+                body: data,
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                toast.success('Model updated successfully');
+                handleCloseEditModal();
+                fetchModels();
+            } else {
+                toast.error(result.error || 'Update failed');
+            }
+        } catch (error) {
+            console.error('Error updating:', error);
+            toast.error('Update failed');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Bạn có chắc muốn xóa model này?')) return;
+
+        try {
+            const res = await fetch(`/api/models/${id}`, {
+                method: 'DELETE',
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                toast.success('Model deleted successfully');
+                fetchModels();
+            } else {
+                toast.error(result.error || 'Delete failed');
+            }
+        } catch (error) {
+            console.error('Error deleting:', error);
+            toast.error('Delete failed');
         }
     };
 
@@ -265,9 +372,25 @@ export default function ModelsPage() {
                                                     {new Date(model.createdAt).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <a href={model.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-900 mr-4">
-                                                        View
-                                                    </a>
+                                                    <div className="flex gap-2">
+                                                        <a href={model.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-900">
+                                                            View
+                                                        </a>
+                                                        <button
+                                                            onClick={() => handleEditClick(model)}
+                                                            className="text-yellow-600 hover:text-yellow-900 flex items-center gap-1"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(model._id)}
+                                                            className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                            Delete
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -278,6 +401,126 @@ export default function ModelsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Edit Modal */}
+            {showEditModal && editingModel && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-2xl font-bold">Edit Model</h2>
+                                <button
+                                    onClick={handleCloseEditModal}
+                                    className="text-gray-500 hover:text-gray-700"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleEditSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Model Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.name}
+                                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Type
+                                    </label>
+                                    <select
+                                        value={editFormData.type}
+                                        onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="glasses">Glasses</option>
+                                        <option value="hat">Hat</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Current Model File
+                                    </label>
+                                    <div className="text-xs text-gray-500 mb-2 truncate">
+                                        {editingModel.url}
+                                    </div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Replace 3D File (Optional)
+                                    </label>
+                                    <input
+                                        type="file"
+                                        onChange={handleEditFileChange}
+                                        accept=".glb,.gltf,.obj"
+                                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Current Thumbnail
+                                    </label>
+                                    {editThumbnailPreview ? (
+                                        <img
+                                            src={editThumbnailPreview}
+                                            alt="Current thumbnail"
+                                            className="w-32 h-32 object-cover rounded-md border border-gray-300 mb-2"
+                                        />
+                                    ) : (
+                                        <div className="w-32 h-32 bg-gray-200 rounded-md flex items-center justify-center mb-2">
+                                            <span className="text-xs text-gray-400">No thumbnail</span>
+                                        </div>
+                                    )}
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Replace Thumbnail (Optional)
+                                    </label>
+                                    <input
+                                        type="file"
+                                        onChange={handleEditThumbnailChange}
+                                        accept="image/*"
+                                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="submit"
+                                        disabled={uploading}
+                                        className="flex-1 flex items-center justify-center bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {uploading ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Updating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-4 h-4 mr-2" />
+                                                Update Model
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseEditModal}
+                                        className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
