@@ -6,6 +6,7 @@ export interface IModel3D extends Document {
     url: string;
     publicId: string;
     thumbnailUrl?: string;
+    thumbnailPublicId?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -32,6 +33,9 @@ const Model3DSchema: Schema<IModel3D> = new Schema(
             required: [true, 'Please provide the Cloudinary public ID'],
         },
         thumbnailUrl: {
+            type: String,
+        },
+        thumbnailPublicId: {
             type: String,
         },
     },

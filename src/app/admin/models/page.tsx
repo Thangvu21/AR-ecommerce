@@ -10,6 +10,8 @@ interface Model3D {
     type: 'glasses' | 'hat' | 'other';
     url: string;
     publicId: string;
+    thumbnailUrl?: string;
+    thumbnailPublicId?: string;
     createdAt: string;
 }
 
@@ -22,6 +24,8 @@ export default function ModelsPage() {
         type: 'glasses',
     });
     const [file, setFile] = useState<File | null>(null);
+    const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+    const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
     useEffect(() => {
         fetchModels();
@@ -48,6 +52,20 @@ export default function ModelsPage() {
         }
     };
 
+    const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setThumbnailFile(file);
+
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setThumbnailPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!file || !formData.name) {
@@ -60,6 +78,9 @@ export default function ModelsPage() {
         data.append('file', file);
         data.append('name', formData.name);
         data.append('type', formData.type);
+        if (thumbnailFile) {
+            data.append('thumbnail', thumbnailFile);
+        }
 
         try {
             const res = await fetch('/api/models', {
@@ -72,9 +93,13 @@ export default function ModelsPage() {
                 toast.success('Model uploaded successfully');
                 setFormData({ name: '', type: 'glasses' });
                 setFile(null);
-                // Reset file input
+                setThumbnailFile(null);
+                setThumbnailPreview(null);
+                // Reset file inputs
                 const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                const thumbnailInput = document.getElementById('thumbnail-upload') as HTMLInputElement;
                 if (fileInput) fileInput.value = '';
+                if (thumbnailInput) thumbnailInput.value = '';
                 fetchModels();
             } else {
                 toast.error(result.error || 'Upload failed');
@@ -140,6 +165,28 @@ export default function ModelsPage() {
                                 />
                             </div>
 
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Thumbnail (Optional)
+                                </label>
+                                <input
+                                    id="thumbnail-upload"
+                                    type="file"
+                                    onChange={handleThumbnailChange}
+                                    accept="image/*"
+                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                                />
+                                {thumbnailPreview && (
+                                    <div className="mt-2">
+                                        <img
+                                            src={thumbnailPreview}
+                                            alt="Thumbnail preview"
+                                            className="w-32 h-32 object-cover rounded-md border border-gray-300"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
                             <button
                                 type="submit"
                                 disabled={uploading}
@@ -179,6 +226,7 @@ export default function ModelsPage() {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thumbnail</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -188,6 +236,19 @@ export default function ModelsPage() {
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {models.map((model) => (
                                             <tr key={model._id}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    {model.thumbnailUrl ? (
+                                                        <img
+                                                            src={model.thumbnailUrl}
+                                                            alt={model.name}
+                                                            className="w-16 h-16 object-cover rounded-md"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
+                                                            <span className="text-xs text-gray-400">No thumb</span>
+                                                        </div>
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-gray-900">{model.name}</div>
                                                     <div className="text-xs text-gray-500 truncate max-w-[150px]">{model.url}</div>

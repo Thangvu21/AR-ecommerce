@@ -51,4 +51,43 @@ export const uploadModelToCloudinary = async (
     }
 };
 
+export const uploadImageToCloudinary = async (
+    file: File | string,
+    folder: string = CLOUDINARY_SECONDARY_FOLDERS.MODELS
+): Promise<{ url: string; publicId: string }> => {
+    try {
+        let uploadData: string;
+
+        if (file instanceof File) {
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            uploadData = `data:${file.type};base64,${buffer.toString('base64')}`;
+        } else {
+            uploadData = file;
+        }
+
+        const timestamp = Date.now();
+        const publicId = `thumbnail-${timestamp}`;
+
+        const result = await cloudinarySecondary.uploader.upload(uploadData, {
+            folder: folder,
+            public_id: publicId,
+            resource_type: 'image',
+            transformation: [
+                { width: 400, height: 400, crop: 'fill' },
+                { quality: 'auto' },
+            ],
+        });
+
+        return {
+            url: result.secure_url,
+            publicId: result.public_id,
+        };
+    } catch (error) {
+        console.error('Cloudinary thumbnail upload error:', error);
+        throw new Error('Failed to upload thumbnail to secondary Cloudinary account');
+    }
+};
+
+
 export default cloudinarySecondary;

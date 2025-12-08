@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
         await connectDB();
         const formData = await req.formData();
         const file = formData.get('file') as File;
+        const thumbnailFile = formData.get('thumbnail') as File | null;
         const name = formData.get('name') as string;
         const type = formData.get('type') as string;
 
@@ -48,8 +49,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Upload to Cloudinary (Secondary Account)
+        // Upload 3D model to Cloudinary (Secondary Account)
         const uploadResult = await uploadModelToCloudinary(file);
+
+        // Upload thumbnail if provided
+        let thumbnailData: { url: string; publicId: string } | null = null;
+        if (thumbnailFile) {
+            const { uploadImageToCloudinary } = await import('@/lib/cloudinarySecondary');
+            thumbnailData = await uploadImageToCloudinary(thumbnailFile);
+        }
 
         // Save to Database
         const newModel = await Model3D.create({
@@ -57,6 +65,10 @@ export async function POST(req: NextRequest) {
             type: type || 'other',
             url: uploadResult.url,
             publicId: uploadResult.publicId,
+            ...(thumbnailData && {
+                thumbnailUrl: thumbnailData.url,
+                thumbnailPublicId: thumbnailData.publicId,
+            }),
         });
 
         return NextResponse.json({ success: true, data: newModel }, { status: 201 });
