@@ -70,14 +70,23 @@ export const DEFAULT_AR_SETTINGS: ARSettings = {
 // PRODUCT TYPES
 // ============================================================
 
-export type ARObjectType = 'glasses' | 'hat' | 'lipstick' | 'mask' | 'earring';  // mở rộng sau
+export type ARObjectType = 'glasses' | 'hat' | 'lipstick' | 'mask' | 'earring';
 
 export interface ARProduct {
   id: string;
   type: ARObjectType;
-  overlayUrl: string;  //2d
-  modelUrl?: string;   //3d
+  overlayUrl: string;
+  modelUrl?: string;
   anchorPoints?: AnchorConfig;
+  metadata?: ARProductMetadata;
+  initAdjustPosition?: { x: number; y: number; z: number };
+  initAdjustRotation?: { x: number; y: number; z: number };
+}
+
+export interface ARProductMetadata {
+  eyeDistanceDivisor?: number;
+  initAdjustPosition?: { x: number; y: number; z: number };
+  initAdjustRotation?: { x: number; y: number; z: number };
 }
 
 export interface AnchorConfig {
