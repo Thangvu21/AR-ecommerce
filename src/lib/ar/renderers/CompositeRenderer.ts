@@ -39,7 +39,12 @@ export class CompositeRenderer extends BaseRenderer {
       return;
     }
 
-    const transform = this.transformCalculator.calculate(landmarks, settings, videoSize);
+    const transform = this.transformCalculator.calculate(
+      landmarks,
+      settings,
+      videoSize,
+      this.currentProduct ?? undefined
+    );
     this.loader.applyTransform(transform, settings.opacity);
     this.renderScene();
   }

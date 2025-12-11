@@ -1,9 +1,10 @@
-import type { FaceLandmarks, ARSettings, ARTransform, VideoSize } from '../types';
+import type { FaceLandmarks, ARSettings, ARTransform, VideoSize, ARProduct } from '../types';
 
 export interface ITransformCalculator {
   calculate(
     landmarks: FaceLandmarks,
     settings: ARSettings,
-    videoSize: VideoSize
+    videoSize: VideoSize,
+    product?: ARProduct
   ): ARTransform;
 }
