@@ -98,11 +98,35 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
 
         if (!rendererRef.current) {
           rendererRef.current = new GlassesRenderer();
+          console.log('AR Renderer được tạo ra');
+        } else {
+          // If an existing renderer was initialized with a previous canvas or is
+          // otherwise already initialized, recreate it to ensure the new canvas
+          // is properly bound (WebGLRenderer attaches to the canvas at ctor).
+          const existingAny = rendererRef.current as any;
+          const wasInitialized = !!existingAny?.isInitialized;
+          const existingCanvas = existingAny?.canvas as HTMLCanvasElement | undefined;
+
+          if (wasInitialized && existingCanvas !== canvas) {
+            try {
+              existingAny.dispose?.();
+            } catch (e) {
+              console.warn('Failed disposing existing AR renderer before re-creating', e);
+            }
+            rendererRef.current = new GlassesRenderer();
+            console.log('AR Renderer đã được tái tạo để gắn canvas mới');
+          } else {
+            console.log('AR Renderer đã tồn tại, dùng lại renderer hiện có');
+          }
         }
+
         rendererRef.current.init(canvas);
 
         if (productRef.current) {
           await rendererRef.current.setProduct(productRef.current);
+          console.log('AR product được hiển thị ra');
+        } else {
+          console.warn('No AR product set before starting the engine.');
         }
 
         updateState({ isLoading: false, isDetecting: true });
