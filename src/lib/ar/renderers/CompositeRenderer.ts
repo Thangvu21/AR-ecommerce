@@ -27,9 +27,19 @@ export class CompositeRenderer extends BaseRenderer {
       throw new Error('CompositeRenderer: Product must have overlayUrl or modelUrl.');
     }
 
-    await this.loader.load(url);
-    this.loader.attachToScene(this.scene);
-    this.currentProduct = product;
+    try {
+      await this.loader.load(url);
+      
+      if (!this.scene) {
+        throw new Error('CompositeRenderer: Scene was disposed during loading.');
+      }
+      
+      this.loader.attachToScene(this.scene);
+      this.currentProduct = product;
+    } catch (error) {
+      console.error('CompositeRenderer: Error setting product:', error);
+      throw error;
+    }
   }
 
   render(landmarks: FaceLandmarks, settings: ARSettings, videoSize: VideoSize): void {

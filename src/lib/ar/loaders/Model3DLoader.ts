@@ -55,6 +55,11 @@ export class Model3DLoader implements IObjectLoader {
   }
 
   attachToScene(scene: THREE.Scene): void {
+    if (!scene) {
+      console.error('Model3DLoader: Cannot attach to null scene');
+      return;
+    }
+    
     if (this.model && !this.model.parent) {
       this.setupLighting(scene);
       scene.add(this.model);
@@ -62,6 +67,11 @@ export class Model3DLoader implements IObjectLoader {
   }
 
   private setupLighting(scene: THREE.Scene): void {
+    if (!scene || !scene.children) {
+      console.error('Model3DLoader: Invalid scene for lighting setup');
+      return;
+    }
+
     const hasLights = scene.children.some(
       (child) => child instanceof THREE.Light
     );

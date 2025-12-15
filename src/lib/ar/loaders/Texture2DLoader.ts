@@ -57,6 +57,11 @@ export class Texture2DLoader implements IObjectLoader {
   }
 
   attachToScene(scene: THREE.Scene): void {
+    if (!scene) {
+      console.error('Texture2DLoader: Cannot attach to null scene');
+      return;
+    }
+    
     if (this.mesh && !this.mesh.parent) {
       scene.add(this.mesh);
     }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { FaceLandmarkDetector } from '@/lib/ar/core/FaceLandmarkDetector';
+import { DetectorManager } from '@/lib/ar/core/DetectorSingleton';
+import type { FaceLandmarkDetector } from '@/lib/ar/core/FaceLandmarkDetector';
 import { createRenderer } from '@/lib/ar/ProductRegistry';
 import type {
   AREngineState,
@@ -89,11 +90,7 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
         canvasRef.current = canvas;
 
         if (!detectorRef.current) {
-          detectorRef.current = new FaceLandmarkDetector(config);
-        }
-
-        if (!detectorRef.current.isReady()) {
-          await detectorRef.current.load();
+          detectorRef.current = await DetectorManager.getInstance(config);
         }
 
         updateState({ isModelLoaded: true });
@@ -143,12 +140,19 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
       previousProduct?.type !== product.type ||
       Boolean(previousProduct?.modelUrl) !== Boolean(product.modelUrl);
 
-    if (needNewRenderer && canvasRef.current) {
+    if (needNewRenderer) {
       if (rendererRef.current) {
         rendererRef.current.dispose();
+        rendererRef.current = null;
       }
-      rendererRef.current = createRenderer(product);
-      rendererRef.current.init(canvasRef.current);
+      
+      if (canvasRef.current) {
+        rendererRef.current = createRenderer(product);
+        rendererRef.current.init(canvasRef.current);
+      } else {
+        console.warn('Canvas not available yet, renderer will be created on start');
+        return;
+      }
     }
 
     if (rendererRef.current) {
@@ -156,9 +160,10 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
         await rendererRef.current.setProduct(product);
       } catch (error) {
         console.error('Failed to set product:', error);
+        updateState({ error: error instanceof Error ? error.message : 'Failed to set product' });
       }
     }
-  }, []);
+  }, [updateState]);
 
   const setSettings = useCallback((newSettings: Partial<ARSettings>) => {
     settingsRef.current = { ...settingsRef.current, ...newSettings };
@@ -169,7 +174,7 @@ export function useAREngine(config?: Partial<AREngineConfig>): UseAREngineReturn
       stop();
 
       if (detectorRef.current) {
-        detectorRef.current.dispose();
+        DetectorManager.release();
         detectorRef.current = null;
       }
 
