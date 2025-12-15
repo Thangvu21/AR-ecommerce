@@ -1,23 +1,38 @@
 "use client";
-import React, { useEffect, useRef, useState, } from "react";
+import React, { useEffect, useRef, useState, useCallback, use } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Settings, Palette, FlipHorizontal, X, Settings2, RectangleGoggles, Layers2 } from 'lucide-react';
+import { Settings, Palette, FlipHorizontal, X, Settings2, RectangleGoggles, Layers2, Pipette } from 'lucide-react';
 import { Button } from "../ui/button";
-
-const PRODUCTS = [
-  { icon: "Glasses", overlay: "https://i.pinimg.com/736x/b1/cf/de/b1cfde97f444553395843d3cb7fd84d2.jpg" },
-  { icon: "Lipstick", overlay: "https://i.pinimg.com/736x/e6/b9/c1/e6b9c1decfae8e63c78edf62d1328f3f.jpg" },
-  { icon: "Hat", overlay: "https://i.pinimg.com/736x/16/87/8e/16878eb1d5ded1952ba961bcbb89a49e.jpg" },
-  { icon: "Mustache", overlay: "https://i.pinimg.com/736x/b4/b4/86/b4b486fcb20bb3a2f855c44d3b688821.jpg" },
-];
+import * as tf from '@tensorflow/tfjs-core';
+import '@tensorflow/tfjs-converter';
+import '@tensorflow/tfjs-backend-webgl';
+import { useAREngine } from '@/hooks/useAREngine';
+import type { ARProduct } from '@/lib/ar';
+import { ar, ca } from "date-fns/locale";
+import { ARObjectType } from "@/lib/ar/types";
+import { prod } from "@tensorflow/tfjs-core";
+import { MyColorPickerComponent } from "./color"
+interface Product {
+  _id: string;
+  name: string;
+  type: string;
+  url: string;
+  thumbnailUrl: string;
+}
 
 
 export default function Page() {
   const router = useRouter();
-  const { id } = useParams() as { id?: string };
+
   const videoIIRef = useRef<HTMLVideoElement>(null);
   const videoIRef = useRef<HTMLVideoElement>(null);
   const arContainerRef = useRef<HTMLDivElement | null>(null);
+  const { state, start, stop, setProduct } = useAREngine();
+  const [productList, setProductList] = useState<Product[]>([]);
+  const prefetchMapRef = useRef<Map<string, Promise<void>>>(new Map());
+
+  const canvasRefI = useRef<any>(null);
+  const canvasRefII = useRef<any>(null);
 
   const [camerasReady, setCamerasReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,22 +43,91 @@ export default function Page() {
   // Try-on state
   const [selectedProductI, setSelectedProductI] = useState<number | null>(null);
   const [selectedProductII, setSelectedProductII] = useState<number | null>(null);
-  const [arEnabledI, setArEnabledI] = useState(true); // Cho Camera I RIGHT
-  const [arEnabledII, setArEnabledII] = useState(true); // Cho Camera II LEFT
-  const [tryOnEnabled, setTryOnEnabled] = useState(true);
+
+  const arProductSelectedI = useRef<ARProduct | null>(null);
+  const arProductSelectedII = useRef<ARProduct | null>(null);
+
+  const [arEnabledI, setArEnabledI] = useState(false);
+  const [arEnabledII, setArEnabledII] = useState(false);
+
   const [slidersOpen, setSlidersOpen] = useState(false);
 
+  const [colorI, setColorI] = useState("#aabbcc");
+  const [colorII, setColorII] = useState("#aabbcc");
+
+  const [showColorPickerI, setShowColorPickerI] = useState(false);
+  const [showColorPickerII, setShowColorPickerII] = useState(false);
+
   // Điều chỉnh overlay
-  const [scale, setScale] = useState(50);
+  const [scale, setScale] = useState(180);
   const [offsetX, setOffsetX] = useState(50);
   const [offsetY, setOffsetY] = useState(50);
   const [opacity, setOpacity] = useState(100);
 
+  const handleSelectedProductI = (index: number) => {
+    const arProduct: ARProduct = {
+      id: productList[index]._id,
+      type: productList[index].type as ARObjectType,
+      modelUrl: productList[index].url,
+      overlayUrl: productList[index].thumbnailUrl,
+    };
+    setProduct(arProduct);
+    setSelectedProductI(index);
+    arProductSelectedI.current = arProduct;
+    setArEnabledI(true);
+  }
+
+  const handleSelectedProductII = (index: number) => {
+    const arProduct: ARProduct = {
+      id: productList[index]._id,
+      type: productList[index].type as ARObjectType,
+      modelUrl: productList[index].type === 'glasses' ? undefined : productList[index].url,
+      overlayUrl: productList[index].url,
+    };
+    setProduct(arProduct);
+    setSelectedProductII(index);
+    arProductSelectedII.current = arProduct;
+    setArEnabledII(true);
+  }
+
+  const handleButtonARI = () => {
+    if (arEnabledI) {
+      setArEnabledI(false);
+      setSelectedProductI(null);
+    } else {
+      setArEnabledI(true);
+      handleSelectedProductI(0);
+    }
+  };
+
+  const handleButtonARII = () => {
+    if (arEnabledII) {
+      setArEnabledII(false);
+      setSelectedProductII(null);
+    } else {
+      setArEnabledII(true);
+      if (productList.length > 0) {
+        setSelectedProductII(0);
+      } else {
+        setSelectedProductII(null);
+      }
+    }
+  };
+
   const handleBackButton = () => {
-    alert("Thực hiện hành động Quay lại/Thoát AR");
     router.back();
     stopStreams();
   }
+
+  const handleCompareButton = () => {
+    setCameraIIEnabled(!CameraIIEnabled);
+    setArEnabledI(false);
+    setArEnabledII(false);
+    setShowColorPickerI(false);
+    setShowColorPickerII(false);
+    setSelectedProductI(null);
+    setSelectedProductII(null);
+  };
 
   const startCameras = async () => {
     try {
@@ -74,7 +158,6 @@ export default function Page() {
 
       setCamerasReady(true);
     } catch (err: any) {
-      // console.log("Error accessing cameras:", err);
       let msg = "Không thể mở camera";
       if (err.name === "NotAllowedError") msg = "Bạn chưa cấp quyền camera";
       else if (err.name === "OverconstrainedError") msg = "Thiết bị không hỗ trợ mở đồng thời 2 camera";
@@ -95,10 +178,98 @@ export default function Page() {
   };
 
   useEffect(() => {
+    const fetchDB = async () => {
+      try {
+        const response = await fetch('/api/models', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const result = await response.json();
+        console.log("Fetch result:", result);
+        if (result.success) {
+          const list_item = [];
+          for (const item of result.data) {
+            const product: Product = {
+              _id: item._id,
+              name: item.name,
+              type: item.type,
+              url: item.url,
+              thumbnailUrl: item.thumbnailUrl,
+            };
+            list_item.push(product);
+          }
+          setProductList(list_item);
+
+          // Prefetch thumbnails + model blobs (warm browser cache) once
+          for (const p of list_item) {
+            if (p.thumbnailUrl && !prefetchMapRef.current.has(p.thumbnailUrl)) {
+              const pr = new Promise<void>((res) => { const img = new Image(); img.src = p.thumbnailUrl; img.onload = () => res(); img.onerror = () => res(); });
+              prefetchMapRef.current.set(p.thumbnailUrl, pr);
+            }
+            if (p.url && !prefetchMapRef.current.has(p.url)) {
+              const pr = fetch(p.url, { method: 'GET', cache: 'force-cache', mode: 'cors' })
+                .then(() => { }).catch(() => { });
+              prefetchMapRef.current.set(p.url, pr);
+            }
+          }
+        }
+      } catch (error) {
+        // handle error
+      }
+    };
+    fetchDB();
+    return () => {
+      tf.disposeVariables();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const tryStart = async () => {
+      if (!arEnabledI) return;
+
+      const maxAttempts = 30;
+      let attempts = 0;
+
+      while (!cancelled && attempts < maxAttempts) {
+        const canvas = canvasRefI.current as HTMLCanvasElement | null;
+        const video = videoIRef.current;
+
+        if (video && canvas instanceof HTMLCanvasElement) {
+          console.log('Start AR Engine for Camera I', canvas, video, arProductSelectedI.current);
+          try {
+            await start(video, canvas);
+          } catch (err) {
+            console.error('Failed to start AR engine:', err);
+          }
+          return;
+        }
+
+        attempts++;
+        // wait for next frame so DOM can mount the canvas
+        await new Promise((res) => requestAnimationFrame(res));
+      }
+
+      if (!cancelled) console.warn('Canvas for AR did not become available in time.');
+    };
+
+    tryStart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [arEnabledI, start]);
+
+  // Xử lý các trường hợp 1-2 camera
+  useEffect(() => {
     startCameras();
     return () => stopStreams();
   }, [CameraIIEnabled]);
 
+  // Chỏ con chuột ra bên ngoài tắt settings
   useEffect(() => {
     const handler = (e: PointerEvent) => {
       const target = e.target as Node;
@@ -113,16 +284,24 @@ export default function Page() {
     return () => document.removeEventListener("pointerdown", handler);
   }, [showSettings, slidersOpen]);
 
-  useEffect(() => {
-    const handleUnload = () => stopStreams();
-    window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
-  }, []);
-
   return (
     <>
       <div className="relative w-full h-screen bg-black overflow-hidden">
         {/* Layout chính - 2 camera */}
+        {/* <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(0,0,0,0.5)', color: 'white', padding: 8, zIndex: 100 }}>
+          <div>Video Ready: {ca ? 'Yes' : 'No'}</div>
+          <div>Model Loaded: {state.isModelLoaded ? 'Yes' : 'No'}</div>
+          <div>Detecting: {state.isDetecting ? 'Yes' : 'No'}</div>
+          <div>Face: {state.faceDetected ? 'Detected' : 'Not found'}</div>
+          <div>FPS: {state.fps}</div>
+        </div> */}
+        <MyColorPickerComponent
+          color={colorI}
+          setColor={setColorI}
+          showColorPicker={showColorPickerI}
+          setShowColorPicker={setShowColorPickerI}
+          name="Model I"
+        />
         <Button
           onClick={() => handleBackButton()}
           title="Exit AR"
@@ -149,86 +328,117 @@ export default function Page() {
                   <p className="text-white">Model I</p>
                 </div>
 
-                {/* Product List cho Model II */}
-                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3 ${swapLayout ? 'right-6' : 'left-6'}`}>
-                  {PRODUCTS.map((p, idx) => (
+                {/* Product List cho Model I */}
+                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3 
+                   max-h-80 overflow-y-auto bg-black/60 backdrop-blur rounded-2xl p-2 shadow-xl scrollbar-hide ${swapLayout ? 'right-6' : 'left-6'}`}>
+                  {(productList.length > 0) && (productList.map((p, idx) => (
                     <Button
                       key={idx}
                       type="button"
-                      onClick={() => { setSelectedProductI(idx); setTryOnEnabled(true); }}
+                      onClick={() => handleSelectedProductI(idx)}
                       className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedProductI === idx ? 'ring-4 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
-                      title={p.icon}
+                      title={p.thumbnailUrl || p.name || ''}
                     >
-                      <img src={p.overlay} alt={p.icon} className="w-full h-full object-cover block" />
+                      <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
                     </Button>
-                  ))}
+                  )))}
                 </aside>
 
-                {/* Tag cho Model I (Camera Sau) */}
+                {/* Tag cho Model II (Camera Sau) */}
                 <div className={`absolute top-25 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${swapLayout ? 'left-0' : 'right-3'}`}>
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <p className="text-white">Model II</p>
                 </div>
 
                 {/* Product List cho Model I */}
-                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3 ${swapLayout ? 'left-6' : 'right-6'}`}>
-                  {PRODUCTS.map((p, idx) => (
+                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3
+                  max-h-80 overflow-y-auto bg-black/60 backdrop-blur rounded-2xl p-2 shadow-xl custom-scrollbar scrollbar-hide
+                  ${swapLayout ? 'left-6' : 'right-6'}`}>
+                  {(productList.length > 0) && (productList.map((p, idx) => (
                     <Button
                       key={idx}
                       type="button"
-                      onClick={() => { setSelectedProductII(idx); setTryOnEnabled(true); }}
+                      onClick={() => handleSelectedProductII(idx)}
                       className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedProductII === idx ? 'ring-4 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
-                      title={p.icon}
+                      title={p.thumbnailUrl || p.name || ''}
                     >
-                      <img src={p.overlay} alt={p.icon} className="w-full h-full object-cover block" />
+                      <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
                     </Button>
-                  ))}
+                  )))}
                 </aside>
 
                 <div className={`flex flex-col h-full ${swapLayout ? 'md:flex-row-reverse' : 'md:flex-row'}`}>
                   {/* Camera sau */}
                   <div className="relative flex-1 px-0 md:px-1 lg:px-2 overflow-hidden rounded-2xl flex items-center justify-center">
-                    <div className="w-full h-full max-w-full max-h-full aspect-[1/1] md:aspect-video">
+                    <div className="w-full h-full max-w-full max-h-full aspect-square md:aspect-video">
                       <video
                         ref={videoIRef}
                         playsInline
                         muted
-                        className="w-full h-full object-cover brightness-[1.15] contrast-[1.1] block rounded-2xl"
+                        className="w-full h-full object-cover brightness-[1.15] contrast-[1.1] scale-x-[-1] block rounded-2xl"
                       />
+                      {arEnabledI && canvasRefI && (
+                        <canvas
+                          ref={canvasRefI}
+                          className="absolute top-0 left-0 w-full h-full pointer-events-none z-10"
+                        />
+                      )}
                     </div>
                     <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                       <p className="text-white">Camera I</p>
                     </div>
                     <Button
-                      onClick={() => setArEnabledI(!arEnabledI)}
+                      onClick={() => handleButtonARI()}
                       title="Bật Model I"
                       className={`absolute top-4 right-4 p-4 size-12 rounded-full transition z-20 ${arEnabledI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-orange-600/60 ring-4 ring-orange-600/30'}`}
                     >
                       <RectangleGoggles className="size-6 text-white" />
                     </Button>
+                    <Button
+                      onClick={() => {
+                        setShowColorPickerI(!showColorPickerI);
+                      }}
+                      title="Config Color Try-On"
+                      className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 transition ${showColorPickerI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
+                      <Palette className="size-6" />
+                    </Button>
                   </div>
 
                   {/* Camera trước */}
                   <div className="relative flex-1 px-0 md:px-1 lg:px-2 overflow-hidden rounded-2xl flex items-center justify-center">
-                    <div className="w-full h-full max-w-full max-h-full aspect-[1/1] md:aspect-video">
+                    <div className="w-full h-full max-w-full max-h-full aspect-square md:aspect-video">
                       <video
                         ref={videoIIRef}
                         playsInline
                         muted
                         className="w-full h-full object-cover brightness-[1.2] scale-x-[-1] block rounded-2xl"
                       />
+                      {arEnabledII && canvasRefII && (
+                        <canvas
+                          ref={canvasRefII}
+                          className="absolute top-0 left-0 w-full h-full pointer-events-none z-10"
+                        />
+                      )}
                     </div>
                     <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                       <p className="text-white">Camera II</p>
                     </div>
                     <Button
-                      onClick={() => setArEnabledII(!arEnabledII)}
+                      onClick={() => handleButtonARII()}
                       title="Bật Model II"
                       className={`absolute size-12 top-4 right-4 p-4 rounded-full transition z-20 ${arEnabledII ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-orange-600/60 ring-4 ring-orange-600/30'}`}
                     >
                       <RectangleGoggles className="size-6 text-white" />
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowColorPickerII(!showColorPickerII);
+                      }}
+                      title="Config Color Try-On"
+                      className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 transition ${showColorPickerII ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
+                      <Palette className="size-6" />
                     </Button>
                   </div>
                 </div>
@@ -240,35 +450,41 @@ export default function Page() {
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                   <p className="text-white">Model I</p>
                 </div>
-
                 {/* Product List cho Model I */}
-                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3 right-6`}>
-                  {PRODUCTS.map((p, idx) => (
+                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3 right-6 
+                   max-h-80 overflow-y-auto bg-black/60 backdrop-blur rounded-2xl p-2 shadow-xl scrollbar-hide`}>
+                  {(productList.length > 0) && productList.map((p, idx) => (
                     <Button
                       key={idx}
                       type="button"
-                      onClick={() => { setSelectedProductI(idx); setTryOnEnabled(true); }}
+                      onClick={() => handleSelectedProductI(idx)}
                       className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedProductI === idx ? 'ring-4 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
-                      title={p.icon}
+                      title={p.thumbnailUrl || p.name || ''}
                     >
-                      <img src={p.overlay} alt={p.icon} className="w-full h-full object-cover block" />
+                      <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
                     </Button>
                   ))}
                 </aside>
-                <div className="w-full max-w-[70%] max-h-[90%] border-0 rounded-2xl overflow-hidden shadow-2xl">
+                <div className="w-full max-w-[70%] max-h-[90%] border-0 rounded-2xl overflow-hidden shadow-2xl relative">
                   <video
                     ref={videoIRef}
                     playsInline
                     muted
-                    className="w-full h-full object-contain brightness-[1.15] contrast-[1.1] block rounded-2xl"
+                    className="w-full h-full object-contain brightness-[1.15] contrast-[1.1] scale-x-[-1] block rounded-2xl"
                   />
+                  {arEnabledI && canvasRefI && (
+                    <canvas
+                      ref={canvasRefI}
+                      className="absolute top-10 left-2 w-full h-full pointer-events-none z-10"
+                    />
+                  )}
                 </div>
                 <div className="absolute top-20 left-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <p className="text-white">Camera I</p>
                 </div>
                 <Button
-                  onClick={() => setArEnabledI(!arEnabledI)}
+                  onClick={() => handleButtonARI()}
                   title="Bật Model"
                   className={`absolute size-12 top-40 left-10 p-4 rounded-full transition z-20 ${arEnabledI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-orange-600/60 ring-4 ring-orange-600/30'}`}
                 >
@@ -277,9 +493,17 @@ export default function Page() {
                 {/* Nút bật lại camera II khi đã tắt */}
                 <Button className="absolute size-12 top-60 left-10 p-4 rounded-full bg-indigo-500/80 ring-4 ring-indigo-500/30 hover:bg-indigo-700 shadow-2xl"
                   title="Bật chế độ so sanh (2 camera)"
-                  onClick={() => setCameraIIEnabled(true)}
+                  onClick={() => handleCompareButton()}
                 >
                   <Layers2 className="size-6 text-white" />
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowColorPickerI(!showColorPickerI);
+                  }}
+                  title="Config Color Try-On"
+                  className={`absolute size-12 top-80 left-10 p-4 rounded-full transition z-20 ${showColorPickerI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
+                  <Palette className="size-6" />
                 </Button>
               </div>
             )}
@@ -295,13 +519,6 @@ export default function Page() {
             title="Swap Layout"
             className="p-4 size-12 rounded-full hover:bg-white/20 transition">
             <FlipHorizontal className="size-6 text-white" />
-          </Button>
-
-          <Button
-            onClick={() => setTryOnEnabled(!tryOnEnabled)}
-            title="Config Color Try-On"
-            className={`p-4 size-12 rounded-full transition ${tryOnEnabled ? 'bg-indigo-500 ring-4 ring-indigo-500/30' : 'bg-white/20'}`}>
-            <Palette className="size-6" />
           </Button>
 
           <Button
@@ -331,7 +548,11 @@ export default function Page() {
             <h3 className="text-lg font-bold text-white text-center mb-5">Điều chỉnh thử đồ</h3>
             <div className="space-y-5">
               <div>
-                <label className="text-xs text-white/70">Kích cỡ ({scale}%)</label>
+                <label className="text-xs text-white/70">Kích cỡ Model I ({scale}%)</label>
+                <input type="range" min="20" max="150" value={scale} onChange={e => setScale(+e.target.value)} className="w-full h-2 bg-gray-700 rounded-full" />
+              </div>
+              <div>
+                <label className="text-xs text-white/70">Kích cỡ Model II ({scale}%)</label>
                 <input type="range" min="20" max="150" value={scale} onChange={e => setScale(+e.target.value)} className="w-full h-2 bg-gray-700 rounded-full" />
               </div>
               <div>
@@ -350,7 +571,6 @@ export default function Page() {
           </div>
         </div>
 
-
         {/* Panel cài đặt trượt lên */}
         <div className={`absolute bottom-30 left-1/2 -translate-x-1/2 transition-all duration-300 ${showSettings ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
           <div className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-3xl p-6 w-80 shadow-2xl no-dismiss">
@@ -365,7 +585,10 @@ export default function Page() {
               <div className="flex items-center justify-between">
                 <span className="text-white">Chế độ so sánh</span>
                 <button
-                  onClick={() => setCameraIIEnabled(!CameraIIEnabled)}
+                  onClick={() => {
+                    setCameraIIEnabled(!CameraIIEnabled)
+                    handleCompareButton();
+                  }}
                   className={`w-14 h-8 rounded-full transition ${CameraIIEnabled ? 'bg-purple-500' : 'bg-gray-600'} relative`}
                 >
                   <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${CameraIIEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
