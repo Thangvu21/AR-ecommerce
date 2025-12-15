@@ -5,6 +5,7 @@ import { CompositeRenderer } from './renderers/CompositeRenderer';
 import { Texture2DLoader } from './loaders/Texture2DLoader';
 import { Model3DLoader } from './loaders/Model3DLoader';
 import { GlassesTransform } from './transforms/GlassesTransform';
+import { HatTransform } from './transforms/HatTransform';
 
 export type ARRenderMode = '2d' | '3d';
 
@@ -30,8 +31,10 @@ class ProductRegistryImpl {
     this.registerLoader('3d', Model3DLoader);
 
     this.registerTransform('glasses', GlassesTransform);
+    this.registerTransform('hat', HatTransform);
 
     this.register('glasses', { loaderType: '2d', transformType: 'glasses' });
+    this.register('hat', { loaderType: '3d', transformType: 'hat' });
   }
 
   registerLoader(mode: ARRenderMode, LoaderClass: LoaderConstructor): void {

@@ -10,23 +10,41 @@ const ARTryOnPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
+  const [productType, setProductType] = useState<'glasses' | 'hat'>('glasses');
   
   const { state, start, stop, setProduct } = useAREngine();
 
   useEffect(() => {
-    const product: ARProduct = {
-      id: is3DMode ? 'glasses-3d' : 'glasses-2d',
-      type: 'glasses',
-      overlayUrl: is3DMode ? '' : '/test-ar/sunglasses.png',
-      modelUrl: is3DMode ? '/test-ar/glass.glb' : undefined,
-      metadata: { 
-        eyeDistanceDivisor: is3DMode ? 500 : 180,
-        initAdjustPosition: is3DMode ? { x: 0, y: -1, z: 0 } : { x: 0, y: 0, z: 0 },
-        initAdjustRotation: is3DMode ? { x: 0, y: 0, z: 0 } : { x: 0, y: 0, z: 0 }
-      }
-    };
+    let product: ARProduct;
+    
+    if (productType === 'hat') {
+      product = {
+        id: 'hat-3d',
+        type: 'hat',
+        overlayUrl: '',
+        modelUrl: '/test-ar/hat.glb',
+        metadata: { 
+          eyeDistanceDivisor: 4500,
+          initAdjustPosition: { x: 0, y: 0, z: 0 },
+          initAdjustRotation: { x: 0.3, y: 0, z: 0 }
+        }
+      };
+    } else {
+      product = {
+        id: is3DMode ? 'glasses-3d' : 'glasses-2d',
+        type: 'glasses',
+        overlayUrl: is3DMode ? '' : '/test-ar/sunglasses.png',
+        modelUrl: is3DMode ? '/test-ar/glass.glb' : undefined,
+        metadata: { 
+          eyeDistanceDivisor: is3DMode ? 500 : 180,
+          initAdjustPosition: is3DMode ? { x: 0, y: 0, z: 0 } : { x: 0, y: 0, z: 0 }, 
+          initAdjustRotation: is3DMode ? { x: 0, y: 0, z: 0 } : { x: 0, y: 0, z: 0 }
+        }
+      };
+    }
+    
     setProduct(product);
-  }, [setProduct, is3DMode]);
+  }, [setProduct, is3DMode, productType]);
 
   const handleUserMedia = useCallback(() => {
     console.log('Camera ready');
@@ -53,26 +71,64 @@ const ARTryOnPage = () => {
     <div>
       <div style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.2)', padding: '20px', background: '#f5f5f5' }}>
         <h1 style={{ textAlign: 'center', margin: '0 0 20px 0' }}>AR Try-On (Integrated)</h1>
-        <div style={{ textAlign: 'center' }}>
-          <button 
-            onClick={() => setIs3DMode(!is3DMode)}
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              cursor: 'pointer',
-              backgroundColor: is3DMode ? '#4CAF50' : '#2196F3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              transition: 'all 0.3s ease',
-              fontWeight: 'bold'
-            }}
-          >
-            {is3DMode ? '3D Model (GLTF)' : '2D Texture (PNG)'}
-          </button>
-          <p style={{ marginTop: '10px', color: '#666', fontSize: '14px' }}>
-            Current mode: {is3DMode ? '3D Model with full rotation' : '2D Texture with basic rotation'}
-          </p>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setProductType('glasses')}
+              style={{
+                padding: '10px 20px',
+                fontSize: '16px',
+                cursor: 'pointer',
+                backgroundColor: productType === 'glasses' ? '#FF6B6B' : '#ddd',
+                color: productType === 'glasses' ? 'white' : '#666',
+                border: 'none',
+                borderRadius: '5px',
+                transition: 'all 0.3s ease',
+                fontWeight: 'bold'
+              }}
+            >
+              Glasses
+            </button>
+            <button 
+              onClick={() => setProductType('hat')}
+              style={{
+                padding: '10px 20px',
+                fontSize: '16px',
+                cursor: 'pointer',
+                backgroundColor: productType === 'hat' ? '#FF6B6B' : '#ddd',
+                color: productType === 'hat' ? 'white' : '#666',
+                border: 'none',
+                borderRadius: '5px',
+                transition: 'all 0.3s ease',
+                fontWeight: 'bold'
+              }}
+            >
+              Hat (3D)
+            </button>
+          </div>
+          {productType === 'glasses' && (
+            <div>
+              <button 
+                onClick={() => setIs3DMode(!is3DMode)}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  backgroundColor: is3DMode ? '#4CAF50' : '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  transition: 'all 0.3s ease',
+                  fontWeight: 'bold'
+                }}
+              >
+                {is3DMode ? '3D Model (GLTF)' : '2D Texture (PNG)'}
+              </button>
+              <p style={{ marginTop: '10px', color: '#666', fontSize: '14px' }}>
+                Current mode: {is3DMode ? '3D Model with full rotation' : '2D Texture with basic rotation'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
       
@@ -93,7 +149,7 @@ const ARTryOnPage = () => {
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '18px', fontWeight: 'bold' }}>Loading AR model...</div>
               <div style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
-                {is3DMode ? 'Loading 3D GLTF model...' : 'Loading 2D texture...'}
+                {productType === 'hat' ? 'Loading Hat 3D model...' : (is3DMode ? 'Loading Glasses 3D model...' : 'Loading 2D texture...')}
               </div>
             </div>
           </div>
@@ -144,7 +200,7 @@ const ARTryOnPage = () => {
           fontSize: '12px',
           fontFamily: 'monospace'
         }}>
-          <div>Mode: <strong>{is3DMode ? '3D' : '2D'}</strong></div>
+          <div>Product: <strong>{productType === 'hat' ? 'Hat (3D)' : (is3DMode ? 'Glasses (3D)' : 'Glasses (2D)')}</strong></div>
           <div>Video Ready: {isVideoReady ? '✓' : '✗'}</div>
           <div>Model Loaded: {state.isModelLoaded ? '✓' : '✗'}</div>
           <div>Detecting: {state.isDetecting ? '✓' : '✗'}</div>
