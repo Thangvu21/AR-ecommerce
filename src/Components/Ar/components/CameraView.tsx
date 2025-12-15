@@ -14,7 +14,7 @@ export function CameraView({
   className = '' 
 }: CameraViewProps) {
   return (
-    <div className={`w-full h-full max-w-full max-h-full ${className}`}>
+    <div className={`relative w-full h-full max-w-full max-h-full ${className}`}>
       <video
         ref={videoRef}
         playsInline

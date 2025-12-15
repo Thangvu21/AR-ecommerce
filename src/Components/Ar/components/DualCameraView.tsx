@@ -140,12 +140,12 @@ export function DualCameraView({
       />
 
       <div className={`flex flex-col h-full ${swapLayout ? 'md:flex-row-reverse' : 'md:flex-row'}`}>
-        <div className="relative flex-1 px-0 md:px-1 lg:px-2 overflow-hidden rounded-2xl flex items-center justify-center">
+        <div className="relative flex-1 px-0 md:px-1 lg:px-2 overflow-hidden rounded-2xl">
           <CameraView
             videoRef={videoIRef}
             canvasRef={canvasRefI}
             arEnabled={arEnabledI}
-            className="aspect-square md:aspect-video"
+            className="w-full h-full"
           />
           
           <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
@@ -178,12 +178,12 @@ export function DualCameraView({
           </Button>
         </div>
 
-        <div className="relative flex-1 px-0 md:px-1 lg:px-2 overflow-hidden rounded-2xl flex items-center justify-center">
+        <div className="relative flex-1 px-0 md:px-1 lg:px-2 overflow-hidden rounded-2xl">
           <CameraView
             videoRef={videoIIRef}
             canvasRef={canvasRefII}
             arEnabled={arEnabledII}
-            className="aspect-square md:aspect-video"
+            className="w-full h-full"
           />
           
           <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
