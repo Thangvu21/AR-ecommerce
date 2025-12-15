@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Product } from '../types';
+import { getProductMetadata } from '@/lib/ar/productMetadata';
 
 async function prefetchAsset(url: string, isImage: boolean): Promise<void> {
   if (isImage) {
@@ -36,13 +37,20 @@ export function useProductManager() {
         const result = await response.json();
         
         if (result.success) {
-          const products: Product[] = result.data.map((item: Record<string, unknown>) => ({
-            _id: item._id as string,
-            name: item.name as string,
-            type: item.type as string,
-            url: item.url as string,
-            thumbnailUrl: item.thumbnailUrl as string,
-          }));
+          const products: Product[] = result.data.map((item: Record<string, unknown>) => {
+            const productName = item.name as string;
+            const productType = item.type as string;
+            const metadata = getProductMetadata(productName, productType);
+            
+            return {
+              _id: item._id as string,
+              name: productName,
+              type: productType,
+              url: item.url as string,
+              thumbnailUrl: item.thumbnailUrl as string,
+              metadata: metadata,
+            };
+          });
 
           if (type === 'glasses') {
             setProductGlassesList(products);

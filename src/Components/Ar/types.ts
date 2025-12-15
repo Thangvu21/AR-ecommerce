@@ -4,6 +4,11 @@ export interface Product {
   type: string;
   url: string;
   thumbnailUrl: string;
+  metadata?: {
+    eyeDistanceDivisor?: number;
+    initAdjustPosition?: { x: number; y: number; z: number };
+    initAdjustRotation?: { x: number; y: number; z: number };
+  };
 }
 
 export interface CameraState {

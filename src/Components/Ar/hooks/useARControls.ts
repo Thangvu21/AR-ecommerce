@@ -30,11 +30,14 @@ export function useARControls(productGlassesList: Product[], productHatList: Pro
   const canvasRefII = useRef<HTMLCanvasElement | null>(null);
 
   const createARProduct = useCallback((product: Product): ARProduct => {
+    const hasModelUrl = Boolean(product.url);
+    
     return {
       id: product._id,
       type: product.type as ARObjectType,
-      modelUrl: product.url || undefined,
-      overlayUrl: product.url ? '' : product.thumbnailUrl,
+      modelUrl: hasModelUrl ? product.url : undefined,
+      overlayUrl: hasModelUrl ? '' : product.thumbnailUrl,
+      metadata: product.metadata,
     };
   }, []);
 

@@ -36,7 +36,7 @@ const ARTryOnPage = () => {
         overlayUrl: is3DMode ? '' : '/test-ar/sunglasses.png',
         modelUrl: is3DMode ? '/test-ar/glass.glb' : undefined,
         metadata: { 
-          eyeDistanceDivisor: is3DMode ? 500 : 180,
+          eyeDistanceDivisor: is3DMode ? 8 : 180,
           initAdjustPosition: is3DMode ? { x: 0, y: 0, z: 0 } : { x: 0, y: 0, z: 0 }, 
           initAdjustRotation: is3DMode ? { x: 0, y: 0, z: 0 } : { x: 0, y: 0, z: 0 }
         }

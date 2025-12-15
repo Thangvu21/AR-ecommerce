@@ -64,7 +64,7 @@ export class HatTransform implements ITransformCalculator {
     return {
       position: { x: posX, y: posY, z: posZ },
       rotation: { 
-        x: rotationX + initAdjustRot.x, 
+        x: 0 + initAdjustRot.x, 
         y: -rotationY + initAdjustRot.y, 
         z: rotationZ + initAdjustRot.z 
       },
