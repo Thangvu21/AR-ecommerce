@@ -5,7 +5,7 @@ interface ColorPickerProps {
   color: string;
   setColor: (color: string) => void;
   showColorPicker: boolean;
-  setShowColorPicker: (is : boolean) => void;
+  setShowColorPicker: (is: boolean) => void;
   name: string;
 }
 
@@ -32,16 +32,14 @@ export const MyColorPickerComponent = ({ color, setColor, showColorPicker, setSh
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (colorRef.current && !colorRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!colorRef.current) return;
+      if (!colorRef.current.contains(target) && !(target instanceof Element && target.closest('.no-dismiss-color'))) {
         setShowColorPicker(false);
       }
     };
 
-    if (showColorPicker) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -55,11 +53,11 @@ export const MyColorPickerComponent = ({ color, setColor, showColorPicker, setSh
           {/* Color Picker Panel */}
           {showColorPicker && (
             <div
-            ref={colorRef} 
-            className="absolute bg-white p-4 rounded-lg shadow-xl w-64">
+              ref={colorRef}
+              className="absolute bg-white p-4 rounded-lg shadow-xl w-64">
               {/* Hex Input */}
               <div className="mb-3">
-                <p className="text-xs font-medium text-gray-600 mb-2">Mã màu Hex của model {name}</p>
+                <p className="text-xs font-medium text-gray-600 mb-2">Color của model {name}</p>
                 <div className="flex gap-2">
                   <input
                     type="color"

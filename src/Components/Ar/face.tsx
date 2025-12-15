@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback, use } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Settings, Palette, FlipHorizontal, X, Settings2, RectangleGoggles, Layers2, Pipette } from 'lucide-react';
+import { Settings, Palette, FlipHorizontal, X, Settings2, RectangleGoggles, Layers2, Glasses, HardHat } from 'lucide-react';
 import { Button } from "../ui/button";
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-converter';
@@ -28,11 +28,19 @@ export default function Page() {
   const videoIRef = useRef<HTMLVideoElement>(null);
   const arContainerRef = useRef<HTMLDivElement | null>(null);
   const { state, start, stop, setProduct } = useAREngine();
-  const [productList, setProductList] = useState<Product[]>([]);
+  const [productGlassesList, setProductGlassesList] = useState<Product[]>([]);
+  const [productHatList, setProductHatList] = useState<Product[]>([]);
+  const prefetchGlassesMapRef = useRef<Map<string, Promise<void>>>(new Map());
+  const prefetchHatMapRef = useRef<Map<string, Promise<void>>>(new Map());
   const prefetchMapRef = useRef<Map<string, Promise<void>>>(new Map());
 
   const canvasRefI = useRef<any>(null);
   const canvasRefII = useRef<any>(null);
+  // 4 canvas cho 2 sản phẩm
+  const canvasGlassesRefI = useRef<any>(null);
+  const canvasGlassesRefII = useRef<any>(null);
+  const canvasHatRefI = useRef<any>(null);
+  const canvasHatRefII = useRef<any>(null);
 
   const [camerasReady, setCamerasReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,11 +49,19 @@ export default function Page() {
   const [showSettings, setShowSettings] = useState(false);
 
   // Try-on state
-  const [selectedProductI, setSelectedProductI] = useState<number | null>(null);
-  const [selectedProductII, setSelectedProductII] = useState<number | null>(null);
+  // Sửa lại 2 sản phẩm ID
+  const [selectedGlassProductI, setSelectedGlassProductI] = useState<number | null>(null);
+  const [selectedGlassProductII, setSelectedGlassProductII] = useState<number | null>(null);
+  const [selectedHatProductI, setSelectedHatProductI] = useState<number | null>(null);
+  const [selectedHatProductII, setSelectedHatProductII] = useState<number | null>(null);
 
   const arProductSelectedI = useRef<ARProduct | null>(null);
   const arProductSelectedII = useRef<ARProduct | null>(null);
+  // San phẩm đang chọn
+  const arProductGlassSelectedI = useRef<ARProduct | null>(null);
+  const arProductGlassSelectedII = useRef<ARProduct | null>(null);
+  const arProductHatSelectedI = useRef<ARProduct | null>(null);
+  const arProductHatSelectedII = useRef<ARProduct | null>(null);
 
   const [arEnabledI, setArEnabledI] = useState(false);
   const [arEnabledII, setArEnabledII] = useState(false);
@@ -58,64 +74,100 @@ export default function Page() {
   const [showColorPickerI, setShowColorPickerI] = useState(false);
   const [showColorPickerII, setShowColorPickerII] = useState(false);
 
+  const [showGlassListI, setShowGlassListI] = useState(false);
+  const [showGlassListII, setShowGlassListII] = useState(false);
+  const [showHatListI, setShowHatListI] = useState(false);
+  const [showHatListII, setShowHatListII] = useState(false);
+  // Nếu có 2 camera:
+
   // Điều chỉnh overlay
   const [scale, setScale] = useState(180);
   const [offsetX, setOffsetX] = useState(50);
   const [offsetY, setOffsetY] = useState(50);
   const [opacity, setOpacity] = useState(100);
 
-  const handleSelectedProductI = (index: number) => {
+  const handleSelectedGlassProductI = (index: number) => {
     const arProduct: ARProduct = {
-      id: productList[index]._id,
-      type: productList[index].type as ARObjectType,
-      modelUrl: productList[index].url,
-      overlayUrl: productList[index].thumbnailUrl,
+      id: productGlassesList[index]._id,
+      type: productGlassesList[index].type as ARObjectType,
+      modelUrl: productGlassesList[index].url,
+      overlayUrl: productGlassesList[index].thumbnailUrl,
     };
     setProduct(arProduct);
-    setSelectedProductI(index);
-    arProductSelectedI.current = arProduct;
-    setArEnabledI(true);
+    setSelectedGlassProductI(index);
+    arProductGlassSelectedI.current = arProduct;
+    if (!arEnabledI) setArEnabledI(true);
   }
 
-  const handleSelectedProductII = (index: number) => {
+  const handleSelectedGlassProductII = (index: number) => {
     const arProduct: ARProduct = {
-      id: productList[index]._id,
-      type: productList[index].type as ARObjectType,
-      modelUrl: productList[index].type === 'glasses' ? undefined : productList[index].url,
-      overlayUrl: productList[index].url,
+      id: productGlassesList[index]._id,
+      type: productGlassesList[index].type as ARObjectType,
+      modelUrl: productGlassesList[index].url,
+      overlayUrl: productGlassesList[index].thumbnailUrl,
     };
     setProduct(arProduct);
-    setSelectedProductII(index);
-    arProductSelectedII.current = arProduct;
-    setArEnabledII(true);
+    setSelectedGlassProductII(index);
+    arProductGlassSelectedII.current = arProduct;
+    if (!arEnabledII) setArEnabledII(true);
+  }
+
+  const handleSelectedHatProductI = (index: number) => {
+    const arProduct: ARProduct = {
+      id: productHatList[index]._id,
+      type: productHatList[index].type as ARObjectType,
+      modelUrl: productHatList[index].url,
+      overlayUrl: productHatList[index].thumbnailUrl,
+    };
+    setProduct(arProduct);
+    setSelectedHatProductI(index);
+    arProductHatSelectedI.current = arProduct;
+    if (!arEnabledI) setArEnabledI(true);
+  }
+
+  const handleSelectedHatProductII = (index: number) => {
+    const arProduct: ARProduct = {
+      id: productHatList[index]._id,
+      type: productHatList[index].type as ARObjectType,
+      modelUrl: productHatList[index].url,
+      overlayUrl: productHatList[index].thumbnailUrl,
+    };
+    setProduct(arProduct);
+    setSelectedHatProductII(index);
+    arProductHatSelectedII.current = arProduct;
+    if (!arEnabledII) setArEnabledII(true);
   }
 
   const handleButtonARI = () => {
     if (arEnabledI) {
       setArEnabledI(false);
-      setSelectedProductI(null);
+      // setSelectedProductI(null);
+      setSelectedGlassProductI(null);
+      setSelectedHatProductI(null);
     } else {
       setArEnabledI(true);
-      handleSelectedProductI(0);
+      handleSelectedGlassProductI(0);
     }
   };
 
   const handleButtonARII = () => {
     if (arEnabledII) {
       setArEnabledII(false);
-      setSelectedProductII(null);
+      // setSelectedProductII(null);
+      setSelectedGlassProductII(null);
+      setSelectedHatProductII(null);
     } else {
       setArEnabledII(true);
-      if (productList.length > 0) {
-        setSelectedProductII(0);
+      if (productGlassesList.length > 0) {
+        setSelectedGlassProductII(0);
       } else {
-        setSelectedProductII(null);
+        setSelectedGlassProductII(null);
       }
     }
   };
 
   const handleBackButton = () => {
-    router.back();
+    router.replace('/');
     stopStreams();
   }
 
@@ -125,8 +177,10 @@ export default function Page() {
     setArEnabledII(false);
     setShowColorPickerI(false);
     setShowColorPickerII(false);
-    setSelectedProductI(null);
-    setSelectedProductII(null);
+    setSelectedGlassProductI(null);
+    setSelectedGlassProductII(null);
+    setSelectedHatProductI(null);
+    setSelectedHatProductII(null);
   };
 
   const startCameras = async () => {
@@ -178,9 +232,9 @@ export default function Page() {
   };
 
   useEffect(() => {
-    const fetchDB = async () => {
+    const fetchGlassesDB = async () => {
       try {
-        const response = await fetch('/api/models', {
+        const response = await fetch('/api/models?type=glasses', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -200,18 +254,18 @@ export default function Page() {
             };
             list_item.push(product);
           }
-          setProductList(list_item);
+          setProductGlassesList(list_item);
 
           // Prefetch thumbnails + model blobs (warm browser cache) once
           for (const p of list_item) {
-            if (p.thumbnailUrl && !prefetchMapRef.current.has(p.thumbnailUrl)) {
+            if (p.thumbnailUrl && !prefetchGlassesMapRef.current.has(p.thumbnailUrl)) {
               const pr = new Promise<void>((res) => { const img = new Image(); img.src = p.thumbnailUrl; img.onload = () => res(); img.onerror = () => res(); });
-              prefetchMapRef.current.set(p.thumbnailUrl, pr);
+              prefetchGlassesMapRef.current.set(p.thumbnailUrl, pr);
             }
-            if (p.url && !prefetchMapRef.current.has(p.url)) {
+            if (p.url && !prefetchGlassesMapRef.current.has(p.url)) {
               const pr = fetch(p.url, { method: 'GET', cache: 'force-cache', mode: 'cors' })
                 .then(() => { }).catch(() => { });
-              prefetchMapRef.current.set(p.url, pr);
+              prefetchGlassesMapRef.current.set(p.url, pr);
             }
           }
         }
@@ -219,7 +273,50 @@ export default function Page() {
         // handle error
       }
     };
-    fetchDB();
+
+    const fetchHatDB = async () => {
+      try {
+        const response = await fetch('/api/models?type=hat', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const result = await response.json();
+        console.log("Fetch result:", result);
+        if (result.success) {
+          const list_item = [];
+          for (const item of result.data) {
+            const product: Product = {
+              _id: item._id,
+              name: item.name,
+              type: item.type,
+              url: item.url,
+              thumbnailUrl: item.thumbnailUrl,
+            };
+            list_item.push(product);
+          }
+          setProductHatList(list_item);
+          // console.log("Hat list:", list_item);
+          for (const p of list_item) {
+            if (p.thumbnailUrl && !prefetchHatMapRef.current.has(p.thumbnailUrl)) {
+              const pr = new Promise<void>((res) => { const img = new Image(); img.src = p.thumbnailUrl; img.onload = () => res(); img.onerror = () => res(); });
+              prefetchHatMapRef.current.set(p.thumbnailUrl, pr);
+            }
+            if (p.url && !prefetchHatMapRef.current.has(p.url)) {
+              const pr = fetch(p.url, { method: 'GET', cache: 'force-cache', mode: 'cors' })
+                .then(() => { }).catch(() => { });
+              prefetchHatMapRef.current.set(p.url, pr);
+            }
+          }
+        }
+      } catch (error) {
+        // handle error
+      }
+    };
+
+    fetchGlassesDB();
+    fetchHatDB();
     return () => {
       tf.disposeVariables();
     };
@@ -302,13 +399,13 @@ export default function Page() {
           setShowColorPicker={setShowColorPickerI}
           name="Model I"
         />
-        <Button
-          onClick={() => handleBackButton()}
-          title="Exit AR"
-          className={`absolute size-12 top-6 left-6 p-4 rounded-full transition z-20 bg-indigo-500/80 ring-indigo-500/40} hover:bg-indigo-700 shadow-2xl`}
-        >
-          <X className="size-6 text-white" />
-        </Button>
+        <MyColorPickerComponent
+          color={colorII}
+          setColor={setColorII}
+          showColorPicker={showColorPickerII}
+          setShowColorPicker={setShowColorPickerII}
+          name="Model II"
+        />
         <div className="relative w-full h-full flex items-center justify-center p-4">
           <div
             className={`
@@ -323,49 +420,138 @@ export default function Page() {
             {/* Khi có 2 camera → chia đôi */}
             {CameraIIEnabled ? (
               <>
-                <div className={`absolute top-25 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${swapLayout ? 'right-3' : 'left-0'}`}>
+                <div className={`absolute top-5 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${swapLayout ? 'right-3' : 'left-0'}`}>
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                   <p className="text-white">Model I</p>
                 </div>
 
                 {/* Product List cho Model I */}
-                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3 
-                   max-h-80 overflow-y-auto bg-black/60 backdrop-blur rounded-2xl p-2 shadow-xl scrollbar-hide ${swapLayout ? 'right-6' : 'left-6'}`}>
-                  {(productList.length > 0) && (productList.map((p, idx) => (
-                    <Button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectedProductI(idx)}
-                      className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedProductI === idx ? 'ring-4 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
-                      title={p.thumbnailUrl || p.name || ''}
-                    >
-                      <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
-                    </Button>
-                  )))}
-                </aside>
+                <div className={`absolute top-20 z-20 ${swapLayout ? 'right-6' : 'left-6'}`}>
+                  <Button
+                    onClick={() => setShowGlassListI((v) => !v)}
+                    className="w-16 h-16 rounded-xl shadow-lg flex items-center justify-center bg-amber-700/70 hover:bg-amber-400 text-white"
+                    title="Chọn sản phẩm"
+                  >
+                    <Glasses className="size-6" />
+                  </Button>
+
+                  {/* Danh sách xổ xuống */}
+                  {showGlassListI && (
+                    <div className={`absolute mt-3 top-full ${swapLayout ? 'right-[-6]' : 'left-[-6]'} bg-black/90 rounded-2xl p-2 shadow-2xl flex flex-col gap-2 max-h-36 overflow-y-auto z-30 scrollbar-hide`}>
+                      {productGlassesList.map((p, idx) => (
+                        <Button
+                          key={idx}
+                          type="button"
+
+                          onClick={() => {
+                            handleSelectedGlassProductI(idx);
+                          }}
+                          className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedGlassProductI === idx ? 'ring-2 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
+                          title={p.thumbnailUrl || p.name || ''}
+                        >
+                          <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className={`absolute top-82 z-20 ${swapLayout ? 'right-6' : 'left-6'}`}>
+                  <Button
+                    onClick={() => setShowHatListI((v) => !v)}
+                    className="w-16 h-16 rounded-xl shadow-lg flex items-center justify-center bg-amber-700/70 hover:bg-amber-400 text-white"
+                    title="Chọn sản phẩm"
+                  >
+                    <HardHat className="size-6" />
+                  </Button>
+
+                  {/* Danh sách xổ xuống */}
+                  {showHatListI && (
+                    <div className={`absolute mt-2 top-full ${swapLayout ? 'right-[-6]' : 'left-[-6]'} bg-black/90 rounded-2xl p-2 shadow-2xl flex flex-col gap-2 max-h-36 overflow-y-auto z-30 scrollbar-hide`}>
+                      {productHatList.map((p, idx) => (
+                        <Button
+                          key={idx}
+                          type="button"
+
+                          onClick={() => {
+                            handleSelectedHatProductI(idx);
+                          }}
+                          className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedHatProductI === idx ? 'ring-2 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
+                          title={p.thumbnailUrl || p.name || ''}
+                        >
+                          <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Tag cho Model II (Camera Sau) */}
-                <div className={`absolute top-25 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${swapLayout ? 'left-0' : 'right-3'}`}>
+                <div className={`absolute top-5 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${swapLayout ? 'left-0' : 'right-3'}`}>
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <p className="text-white">Model II</p>
                 </div>
 
-                {/* Product List cho Model I */}
-                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3
-                  max-h-80 overflow-y-auto bg-black/60 backdrop-blur rounded-2xl p-2 shadow-xl custom-scrollbar scrollbar-hide
-                  ${swapLayout ? 'left-6' : 'right-6'}`}>
-                  {(productList.length > 0) && (productList.map((p, idx) => (
-                    <Button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectedProductII(idx)}
-                      className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedProductII === idx ? 'ring-4 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
-                      title={p.thumbnailUrl || p.name || ''}
-                    >
-                      <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
-                    </Button>
-                  )))}
-                </aside>
+                {/* Product List cho Model II */}
+                <div className={`absolute top-20 z-20 ${swapLayout ? 'left-6' : 'right-6'}`}>
+                  <Button
+                    onClick={() => setShowGlassListII((v) => !v)}
+                    className="w-16 h-16 rounded-xl shadow-lg flex items-center justify-center bg-amber-700/70 hover:bg-amber-400 text-white"
+                    title="Chọn sản phẩm"
+                  >
+                    <Glasses className="size-6" />
+                  </Button>
+
+                  {/* Danh sách xổ xuống */}
+                  {showGlassListII && (
+                    <div className={`absolute mt-3 top-full ${swapLayout ? 'left-[-6]' : 'right-[-6]'} bg-black/90 rounded-2xl p-2 shadow-2xl flex flex-col gap-2 max-h-36 overflow-y-auto z-30 scrollbar-hide`}>
+                      {productGlassesList.map((p, idx) => (
+                        <Button
+                          key={idx}
+                          type="button"
+
+                          onClick={() => {
+                            handleSelectedGlassProductII(idx);
+                          }}
+                          className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedGlassProductII === idx ? 'ring-2 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
+                          title={p.thumbnailUrl || p.name || ''}
+                        >
+                          <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className={`absolute top-82 z-20 ${swapLayout ? 'left-6' : 'right-6'}`}>
+                  <Button
+                    onClick={() => setShowHatListII((v) => !v)}
+                    className="w-16 h-16 rounded-xl shadow-lg flex items-center justify-center bg-amber-700/70 hover:bg-amber-400 text-white"
+                    title="Chọn sản phẩm"
+                  >
+                    <HardHat className="size-6" />
+                  </Button>
+
+                  {/* Danh sách xổ xuống */}
+                  {showHatListII && (
+                    <div className={`absolute mt-2 top-full ${swapLayout ? 'left-[-6]' : 'right-[-6]'} bg-black/90 rounded-2xl p-2 shadow-2xl flex flex-col gap-2 max-h-36 overflow-y-auto z-30 scrollbar-hide`}>
+                      {productHatList.map((p, idx) => (
+                        <Button
+                          key={idx}
+                          type="button"
+
+                          onClick={() => {
+                            handleSelectedHatProductII(idx);
+                          }}
+                          className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedHatProductII === idx ? 'ring-2 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
+                          title={p.thumbnailUrl || p.name || ''}
+                        >
+                          <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div className={`flex flex-col h-full ${swapLayout ? 'md:flex-row-reverse' : 'md:flex-row'}`}>
                   {/* Camera sau */}
@@ -400,7 +586,7 @@ export default function Page() {
                         setShowColorPickerI(!showColorPickerI);
                       }}
                       title="Config Color Try-On"
-                      className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 transition ${showColorPickerI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
+                      className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 no-dismiss-color transition ${showColorPickerI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
                       <Palette className="size-6" />
                     </Button>
                   </div>
@@ -437,7 +623,7 @@ export default function Page() {
                         setShowColorPickerII(!showColorPickerII);
                       }}
                       title="Config Color Try-On"
-                      className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 transition ${showColorPickerII ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
+                      className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 no-dismiss-color transition ${showColorPickerII ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
                       <Palette className="size-6" />
                     </Button>
                   </div>
@@ -446,26 +632,74 @@ export default function Page() {
             ) : (
               /* Khi chỉ còn 1 camera */
               <div className="relative w-full h-full flex items-center justify-center bg-black">
-                <div className={`absolute top-25 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 right-3`}>
+                <div className={`absolute top-3 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 right-3`}>
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                   <p className="text-white">Model I</p>
                 </div>
                 {/* Product List cho Model I */}
-                <aside className={`absolute bottom-0.5 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3 right-6 
-                   max-h-80 overflow-y-auto bg-black/60 backdrop-blur rounded-2xl p-2 shadow-xl scrollbar-hide`}>
-                  {(productList.length > 0) && productList.map((p, idx) => (
-                    <Button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectedProductI(idx)}
-                      className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedProductI === idx ? 'ring-4 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
-                      title={p.thumbnailUrl || p.name || ''}
-                    >
-                      <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
-                    </Button>
-                  ))}
-                </aside>
-                <div className="w-full max-w-[70%] max-h-[90%] border-0 rounded-2xl overflow-hidden shadow-2xl relative">
+
+                {/* Nút mở danh sách sản phẩm */}
+                <div className={`absolute top-15 right-6 z-20`}>
+                  <Button
+                    onClick={() => setShowGlassListI((v) => !v)}
+                    className="w-16 h-16 rounded-xl shadow-lg flex items-center justify-center bg-amber-700/70 hover:bg-amber-400 text-white"
+                    title="Chọn sản phẩm"
+                  >
+                    <Glasses className="size-6" />
+                  </Button>
+
+                  {/* Danh sách xổ xuống */}
+                  {showGlassListI && (
+                    <div className="absolute mt-2 top-full right-[-7.5] bg-black/90 rounded-2xl p-2 shadow-2xl flex flex-col gap-2 max-h-36 overflow-y-auto z-30 scrollbar-hide">
+                      {productGlassesList.map((p, idx) => (
+                        <Button
+                          key={idx}
+                          type="button"
+
+                          onClick={() => {
+                            handleSelectedGlassProductI(idx);
+                          }}
+                          className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedGlassProductI === idx ? 'ring-2 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
+                          title={p.thumbnailUrl || p.name || ''}
+                        >
+                          <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className={`absolute top-72 right-6 z-20`}>
+                  <Button
+                    onClick={() => setShowHatListI((v) => !v)}
+                    className="w-16 h-16 rounded-xl shadow-lg flex items-center justify-center bg-amber-700/70 hover:bg-amber-400 text-white"
+                    title="Chọn sản phẩm"
+                  >
+                    <HardHat className="size-6" />
+                  </Button>
+
+                  {/* Danh sách xổ xuống */}
+                  {showHatListI && (
+                    <div className="absolute mt-2 top-full right-[-7.5] bg-black/90 rounded-2xl p-2 shadow-2xl flex flex-col gap-2 max-h-36 overflow-y-auto z-30 scrollbar-hide">
+                      {productHatList.map((p, idx) => (
+                        <Button
+                          key={idx}
+                          type="button"
+
+                          onClick={() => {
+                            handleSelectedHatProductI(idx);
+                          }}
+                          className={`w-16 h-16 p-0 rounded-xl overflow-hidden shadow-lg flex items-center justify-center transition-transform ${selectedHatProductI === idx ? 'ring-2 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
+                          title={p.thumbnailUrl || p.name || ''}
+                        >
+                          <img src={p.thumbnailUrl || p.name || ''} alt={p.name || ''} className="w-full h-full object-cover block" />
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-full max-w-[80%] max-h-[95%] border-0 rounded-2xl overflow-hidden shadow-2xl relative">
                   <video
                     ref={videoIRef}
                     playsInline
@@ -479,6 +713,7 @@ export default function Page() {
                     />
                   )}
                 </div>
+
                 <div className="absolute top-20 left-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <p className="text-white">Camera I</p>
@@ -502,7 +737,7 @@ export default function Page() {
                     setShowColorPickerI(!showColorPickerI);
                   }}
                   title="Config Color Try-On"
-                  className={`absolute size-12 top-80 left-10 p-4 rounded-full transition z-20 ${showColorPickerI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
+                  className={`absolute size-12 top-80 left-10 p-4 rounded-full no-dismiss-color transition z-20 ${showColorPickerI ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' : 'bg-amber-500/60 ring-4 ring-amber-300/30'}`}>
                   <Palette className="size-6" />
                 </Button>
               </div>
@@ -514,6 +749,13 @@ export default function Page() {
         <div
           ref={arContainerRef}
           className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/70 backdrop-blur-xl px-6 py-4 rounded-full shadow-2xl z-10 no-dismiss">
+          <Button
+            onClick={() => handleBackButton()}
+            title="Exit AR"
+            className={`size-12 p-4 rounded-full transition z-20 bg-indigo-500/80 ring-indigo-500/40} hover:bg-indigo-700 shadow-2xl`}
+          >
+            <X className="size-6 text-white" />
+          </Button>
           <Button
             onClick={() => setSwapLayout(!swapLayout)}
             title="Swap Layout"
