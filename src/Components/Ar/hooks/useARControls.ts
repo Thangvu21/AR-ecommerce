@@ -137,6 +137,8 @@ export function useARControls(productGlassesList: Product[], productHatList: Pro
 
         if (video && canvas instanceof HTMLCanvasElement) {
           try {
+            canvas.width = video.videoWidth || video.clientWidth;
+            canvas.height = video.videoHeight || video.clientHeight;
             await arEngineIRef.current.start(video as HTMLVideoElement, canvas);
           } catch (err) {
             console.error('Failed to start AR engine I:', err);
@@ -177,6 +179,8 @@ export function useARControls(productGlassesList: Product[], productHatList: Pro
 
         if (video && canvas instanceof HTMLCanvasElement) {
           try {
+            canvas.width = video.videoWidth || video.clientWidth;
+            canvas.height = video.videoHeight || video.clientHeight;
             await arEngineIIRef.current.start(video as HTMLVideoElement, canvas);
           } catch (err) {
             console.error('Failed to start AR engine II:', err);

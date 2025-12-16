@@ -80,17 +80,17 @@ export function SingleCameraView({
         topOffset="top-72"
       />
 
-      <div className="w-full max-w-[80%] max-h-[95%] border-0 rounded-2xl overflow-hidden shadow-2xl relative">
+      <div className="w-full max-w-[80%] max-h-[95%] border-0 rounded-2xl overflow-hidden shadow-2xl relative flex items-center justify-center">
         <video
           ref={videoRef}
           playsInline
           muted
-          className="w-full h-full object-contain brightness-[1.15] contrast-[1.1] scale-x-[-1] block rounded-2xl"
+          className="max-w-full max-h-full object-contain brightness-[1.15] contrast-[1.1] scale-x-[-1] block rounded-2xl"
         />
         {arEnabled && canvasRef && (
           <canvas
             ref={canvasRef}
-            className="absolute top-0 left-0 w-full h-full pointer-events-none z-10"
+            className="absolute max-w-full max-h-full object-contain pointer-events-none z-10 rounded-2xl"
           />
         )}
       </div>

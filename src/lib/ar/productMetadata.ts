@@ -19,7 +19,7 @@ export const PRODUCT_METADATA_MAP: Record<string, ARProductMetadata> = {
   },
   
   'glass_7': {
-    eyeDistanceDivisor: 500,
+    eyeDistanceDivisor: 550,
     initAdjustPosition: { x: 0, y: -1, z: 0 },
     initAdjustRotation: { x: 0, y: -1.57, z: 0 }
   },
