@@ -1,10 +1,11 @@
 import React from 'react';
 import { Button } from '@/Components/ui/button';
 import { 
-  X, 
+  ArrowLeft, 
   FlipHorizontal, 
   Settings2,
-  Layers2
+  Layers2,
+  Camera
 } from 'lucide-react';
 
 interface ControlPanelProps {
@@ -12,6 +13,7 @@ interface ControlPanelProps {
   onSwapLayout: () => void;
   onToggleSliders: () => void;
   onToggleCompare: () => void;
+  onCapture: () => void;
   slidersOpen: boolean;
   cameraIIEnabled: boolean;
 }
@@ -21,6 +23,7 @@ export function ControlPanel({
   onSwapLayout,
   onToggleSliders,
   onToggleCompare,
+  onCapture,
   slidersOpen,
   cameraIIEnabled,
 }: ControlPanelProps) {
@@ -29,9 +32,10 @@ export function ControlPanel({
       <Button
         onClick={onBack}
         title="Exit AR"
-        className="size-12 p-4 rounded-full transition z-20 bg-indigo-500/80 ring-indigo-500/40 hover:bg-indigo-700 shadow-2xl"
+        className="h-10 px-4 rounded-full transition z-20 bg-white/10 hover:bg-white/20 text-white text-sm font-medium flex items-center gap-2"
       >
-        <X className="size-6 text-white" />
+        <ArrowLeft className="size-4" />
+        <span>Exit</span>
       </Button>
       
       <Button
@@ -62,9 +66,13 @@ export function ControlPanel({
         <Layers2 className="size-6 text-white" />
       </Button>
 
-      <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-        <div className="w-5 h-5 bg-white rounded-full"></div>
-      </div>
+      <Button
+        onClick={onCapture}
+        title="Chụp ảnh AR"
+        className="w-14 h-14 rounded-full bg-white hover:bg-gray-200 transition flex items-center justify-center shadow-lg"
+      >
+        <Camera className="size-6 text-gray-800" />
+      </Button>
     </div>
   );
 }

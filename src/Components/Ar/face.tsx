@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-converter';
@@ -14,6 +14,8 @@ import { SingleCameraView, type ViewMode, type ProductType } from './components/
 import { ControlPanel } from './components/ControlPanel';
 import { ARSettingsSliders } from './components/ARSettingsSliders';
 import { LoadingScreen, ErrorScreen } from './components/LoadingAndError';
+import { CapturePreviewModal } from './components/CapturePreviewModal';
+import { captureVideoWithCanvasAsync, captureDualCamerasAsync, downloadImage } from './utils/captureUtils';
 import type { ARSettings, ARModelSettings } from './types';
 
 const DEFAULT_MODEL_SETTINGS: ARModelSettings = {
@@ -39,6 +41,9 @@ export default function Page() {
   const [showGlassListII, setShowGlassListII] = useState(false);
   const [showHatListI, setShowHatListI] = useState(false);
   const [showHatListII, setShowHatListII] = useState(false);
+
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [showCaptureModal, setShowCaptureModal] = useState(false);
 
   const [arSettings, setArSettings] = useState<ARSettings>({
     modelI: { ...DEFAULT_MODEL_SETTINGS },
@@ -182,6 +187,44 @@ export default function Page() {
     handleSelectedHatProductII(index);
   };
 
+  const handleCapture = useCallback(async () => {
+    let imageUrl: string | null = null;
+    
+    if (cameraIIEnabled) {
+      imageUrl = await captureDualCamerasAsync(
+        videoIRef.current,
+        canvasRefI.current,
+        videoIIRef.current,
+        canvasRefII.current,
+        true
+      );
+    } else {
+      imageUrl = await captureVideoWithCanvasAsync(
+        videoIRef.current,
+        canvasRefI.current,
+        true
+      );
+    }
+    
+    if (imageUrl) {
+      setCapturedImage(imageUrl);
+      setShowCaptureModal(true);
+    }
+  }, [cameraIIEnabled, videoIRef, videoIIRef, canvasRefI, canvasRefII]);
+
+  const handleSaveCapture = useCallback(() => {
+    if (capturedImage) {
+      downloadImage(capturedImage);
+      setShowCaptureModal(false);
+      setCapturedImage(null);
+    }
+  }, [capturedImage]);
+
+  const handleCloseCaptureModal = useCallback(() => {
+    setShowCaptureModal(false);
+    setCapturedImage(null);
+  }, []);
+
   useEffect(() => {
     preloadARModel().catch(console.error);
   }, []);
@@ -279,6 +322,7 @@ export default function Page() {
           onSwapLayout={() => setSwapLayout(v => !v)}
           onToggleSliders={() => setSlidersOpen(v => !v)}
           onToggleCompare={handleCompareButton}
+          onCapture={handleCapture}
           slidersOpen={slidersOpen}
           cameraIIEnabled={cameraIIEnabled}
         />
@@ -293,6 +337,12 @@ export default function Page() {
 
         <LoadingScreen show={!camerasReady && !error} />
         <ErrorScreen error={error} onRetry={startCameras} />
+
+        <CapturePreviewModal
+          imageUrl={capturedImage}
+          onClose={handleCloseCaptureModal}
+          onSave={handleSaveCapture}
+        />
       </div>
     </>
   );
