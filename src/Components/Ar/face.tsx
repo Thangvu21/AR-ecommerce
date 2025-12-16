@@ -11,7 +11,7 @@ import { useCameraManager } from './hooks/useCameraManager';
 import { useProductManager } from './hooks/useProductManager';
 import { useARControls } from './hooks/useARControls';
 import { DualCameraView } from './components/DualCameraView';
-import { SingleCameraView } from './components/SingleCameraView';
+import { SingleCameraView, type ViewMode, type ProductType } from './components/SingleCameraView';
 import { ControlPanel } from './components/ControlPanel';
 import { ARSettingsSliders } from './components/ARSettingsSliders';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -37,6 +37,9 @@ export default function Page() {
 
   const [showColorPickerI, setShowColorPickerI] = useState(false);
   const [showColorPickerII, setShowColorPickerII] = useState(false);
+  
+  const [viewMode, setViewMode] = useState<ViewMode>('camera');
+  const [lastSelectedTypeI, setLastSelectedTypeI] = useState<ProductType>(null);
 
   const [showGlassListI, setShowGlassListI] = useState(false);
   const [showGlassListII, setShowGlassListII] = useState(false);
@@ -121,6 +124,22 @@ export default function Page() {
     resetSettingsToDefault();
     setShowColorPickerI(false);
     setShowColorPickerII(false);
+    setViewMode('camera');
+    setLastSelectedTypeI(null);
+  };
+  
+  const handleToggleViewMode = () => {
+    const newMode = viewMode === 'camera' ? '3d-viewer' : 'camera';
+    setViewMode(newMode);
+    
+    // When switching back to camera mode, need to trigger AR restart if AR was enabled
+    if (newMode === 'camera' && arEnabledI) {
+      // Force re-trigger AR by toggling it off and on
+      toggleARI();
+      setTimeout(() => {
+        toggleARI();
+      }, 100);
+    }
   };
 
   const updateSettingsI = (updates: Partial<ARModelSettings>) => {
@@ -152,6 +171,7 @@ export default function Page() {
   const onSelectGlassProductI = (index: number) => {
     resetSettingsI();
     handleSelectedGlassProductI(index);
+    setLastSelectedTypeI('glasses');
   };
 
   const onSelectGlassProductII = (index: number) => {
@@ -162,6 +182,7 @@ export default function Page() {
   const onSelectHatProductI = (index: number) => {
     resetSettingsI();
     handleSelectedHatProductI(index);
+    setLastSelectedTypeI('hat');
   };
 
   const onSelectHatProductII = (index: number) => {
@@ -266,6 +287,7 @@ export default function Page() {
                 productHatList={productHatList}
                 selectedGlassProduct={selectedGlassProductI}
                 selectedHatProduct={selectedHatProductI}
+                lastSelectedType={lastSelectedTypeI}
                 showGlassList={showGlassListI}
                 showHatList={showHatListI}
                 onToggleGlassList={() => setShowGlassListI(v => !v)}
@@ -276,6 +298,8 @@ export default function Page() {
                 onToggleCompare={handleCompareButton}
                 showColorPicker={showColorPickerI}
                 onToggleColorPicker={() => setShowColorPickerI(v => !v)}
+                viewMode={viewMode}
+                onToggleViewMode={handleToggleViewMode}
               />
             )}
           </div>
