@@ -1,6 +1,6 @@
 import React, { RefObject } from 'react';
 import { Button } from '@/Components/ui/button';
-import { RectangleGoggles, Palette, Layers2, Camera, Box } from 'lucide-react';
+import { RectangleGoggles, Camera, Box } from 'lucide-react';
 
 import { ProductSelector } from './ProductSelector';
 import { Model3DViewer } from './Model3DViewer';
@@ -31,10 +31,6 @@ interface SingleCameraViewProps {
   onSelectHatProduct: (index: number) => void;
   
   onToggleAR: () => void;
-  onToggleCompare: () => void;
-  
-  showColorPicker: boolean;
-  onToggleColorPicker: () => void;
   
   viewMode: ViewMode;
   onToggleViewMode: () => void;
@@ -56,9 +52,6 @@ export function SingleCameraView({
   onSelectGlassProduct,
   onSelectHatProduct,
   onToggleAR,
-  onToggleCompare,
-  showColorPicker,
-  onToggleColorPicker,
   viewMode,
   onToggleViewMode,
 }: SingleCameraViewProps) {
@@ -165,39 +158,17 @@ export function SingleCameraView({
       )}
 
       {viewMode === 'camera' && (
-        <>
-          <Button
-            onClick={onToggleAR}
-            title="Bật Model"
-            className={`absolute size-12 top-40 left-10 p-4 rounded-full transition z-20 ${
-              arEnabled 
-                ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' 
-                : 'bg-orange-600/60 ring-4 ring-orange-600/30'
-            }`}
-          >
-            <RectangleGoggles className="size-6 text-white" />
-          </Button>
-
-          <Button
-            onClick={onToggleCompare}
-            className="absolute size-12 top-60 left-10 p-4 rounded-full bg-indigo-500/80 ring-4 ring-indigo-500/30 hover:bg-indigo-700 shadow-2xl"
-            title="Bật chế độ so sánh (2 camera)"
-          >
-            <Layers2 className="size-6 text-white" />
-          </Button>
-
-          <Button
-            onClick={onToggleColorPicker}
-            title="Config Color Try-On"
-            className={`absolute size-12 top-80 left-10 p-4 rounded-full no-dismiss-color transition z-20 ${
-              showColorPicker 
-                ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' 
-                : 'bg-amber-500/60 ring-4 ring-amber-300/30'
-            }`}
-          >
-            <Palette className="size-6" />
-          </Button>
-        </>
+        <Button
+          onClick={onToggleAR}
+          title="Bật Model"
+          className={`absolute size-12 top-40 left-10 p-4 rounded-full transition z-20 ${
+            arEnabled 
+              ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' 
+              : 'bg-orange-600/60 ring-4 ring-orange-600/30'
+          }`}
+        >
+          <RectangleGoggles className="size-6 text-white" />
+        </Button>
       )}
     </div>
   );

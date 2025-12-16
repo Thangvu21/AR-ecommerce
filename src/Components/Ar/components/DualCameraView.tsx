@@ -1,6 +1,6 @@
 import React, { RefObject } from 'react';
 import { Button } from '@/Components/ui/button';
-import { RectangleGoggles, Palette } from 'lucide-react';
+import { RectangleGoggles } from 'lucide-react';
 import { CameraView } from './CameraView';
 import { ProductSelector } from './ProductSelector';
 import type { Product } from '../types';
@@ -39,11 +39,6 @@ interface DualCameraViewProps {
   
   onToggleARI: () => void;
   onToggleARII: () => void;
-  
-  showColorPickerI: boolean;
-  showColorPickerII: boolean;
-  onToggleColorPickerI: () => void;
-  onToggleColorPickerII: () => void;
 }
 
 export function DualCameraView({
@@ -74,10 +69,6 @@ export function DualCameraView({
   onSelectHatProductII,
   onToggleARI,
   onToggleARII,
-  showColorPickerI,
-  showColorPickerII,
-  onToggleColorPickerI,
-  onToggleColorPickerII,
 }: DualCameraViewProps) {
   return (
     <>
@@ -164,18 +155,6 @@ export function DualCameraView({
           >
             <RectangleGoggles className="size-6 text-white" />
           </Button>
-          
-          <Button
-            onClick={onToggleColorPickerI}
-            title="Config Color Try-On"
-            className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 no-dismiss-color transition ${
-              showColorPickerI 
-                ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' 
-                : 'bg-amber-500/60 ring-4 ring-amber-300/30'
-            }`}
-          >
-            <Palette className="size-6" />
-          </Button>
         </div>
 
         <div className="relative flex-1 px-0 md:px-1 lg:px-2 overflow-hidden rounded-2xl">
@@ -201,18 +180,6 @@ export function DualCameraView({
             }`}
           >
             <RectangleGoggles className="size-6 text-white" />
-          </Button>
-          
-          <Button
-            onClick={onToggleColorPickerII}
-            title="Config Color Try-On"
-            className={`absolute top-4 right-20 p-4 size-12 rounded-full z-20 no-dismiss-color transition ${
-              showColorPickerII 
-                ? 'bg-indigo-500/80 ring-4 ring-indigo-500/30' 
-                : 'bg-amber-500/60 ring-4 ring-amber-300/30'
-            }`}
-          >
-            <Palette className="size-6" />
           </Button>
         </div>
       </div>

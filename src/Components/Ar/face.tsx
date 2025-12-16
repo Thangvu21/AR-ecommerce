@@ -6,7 +6,6 @@ import '@tensorflow/tfjs-converter';
 import '@tensorflow/tfjs-backend-webgl';
 
 import { preloadARModel } from '@/hooks/useAREngine';
-import { MyColorPickerComponent } from "./color";
 import { useCameraManager } from './hooks/useCameraManager';
 import { useProductManager } from './hooks/useProductManager';
 import { useARControls } from './hooks/useARControls';
@@ -14,7 +13,6 @@ import { DualCameraView } from './components/DualCameraView';
 import { SingleCameraView, type ViewMode, type ProductType } from './components/SingleCameraView';
 import { ControlPanel } from './components/ControlPanel';
 import { ARSettingsSliders } from './components/ARSettingsSliders';
-import { SettingsPanel } from './components/SettingsPanel';
 import { LoadingScreen, ErrorScreen } from './components/LoadingAndError';
 import type { ARSettings, ARModelSettings } from './types';
 
@@ -32,11 +30,7 @@ export default function Page() {
 
   const [cameraIIEnabled, setCameraIIEnabled] = useState(false);
   const [swapLayout, setSwapLayout] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [slidersOpen, setSlidersOpen] = useState(false);
-
-  const [showColorPickerI, setShowColorPickerI] = useState(false);
-  const [showColorPickerII, setShowColorPickerII] = useState(false);
   
   const [viewMode, setViewMode] = useState<ViewMode>('camera');
   const [lastSelectedTypeI, setLastSelectedTypeI] = useState<ProductType>(null);
@@ -122,8 +116,6 @@ export default function Page() {
     setCameraIIEnabled(!cameraIIEnabled);
     resetAR();
     resetSettingsToDefault();
-    setShowColorPickerI(false);
-    setShowColorPickerII(false);
     setViewMode('camera');
     setLastSelectedTypeI(null);
   };
@@ -206,33 +198,17 @@ export default function Page() {
       if (!arContainerRef.current) return;
       if (!arContainerRef.current.contains(target) && 
           !(target instanceof Element && target.closest('.no-dismiss'))) {
-        setShowSettings(false);
         setSlidersOpen(false);
       }
     };
 
     document.addEventListener("pointerdown", handler);
     return () => document.removeEventListener("pointerdown", handler);
-  }, [showSettings, slidersOpen]);
+  }, [slidersOpen]);
 
   return (
     <>
       <div className="relative w-full h-screen bg-black overflow-hidden">
-        <MyColorPickerComponent
-          color={arSettings.modelI.color}
-          setColor={(color) => updateSettingsI({ color })}
-          showColorPicker={showColorPickerI}
-          setShowColorPicker={setShowColorPickerI}
-          name="Model I"
-        />
-        <MyColorPickerComponent
-          color={arSettings.modelII.color}
-          setColor={(color) => updateSettingsII({ color })}
-          showColorPicker={showColorPickerII}
-          setShowColorPicker={setShowColorPickerII}
-          name="Model II"
-        />
-        
         <div className="relative w-full h-full flex items-center justify-center p-4">
           <div
             className={`
@@ -273,10 +249,6 @@ export default function Page() {
                 onSelectHatProductII={onSelectHatProductII}
                 onToggleARI={toggleARI}
                 onToggleARII={toggleARII}
-                showColorPickerI={showColorPickerI}
-                showColorPickerII={showColorPickerII}
-                onToggleColorPickerI={() => setShowColorPickerI(v => !v)}
-                onToggleColorPickerII={() => setShowColorPickerII(v => !v)}
               />
             ) : (
               <SingleCameraView
@@ -295,9 +267,6 @@ export default function Page() {
                 onSelectGlassProduct={onSelectGlassProductI}
                 onSelectHatProduct={onSelectHatProductI}
                 onToggleAR={toggleARI}
-                onToggleCompare={handleCompareButton}
-                showColorPicker={showColorPickerI}
-                onToggleColorPicker={() => setShowColorPickerI(v => !v)}
                 viewMode={viewMode}
                 onToggleViewMode={handleToggleViewMode}
               />
@@ -309,9 +278,9 @@ export default function Page() {
           onBack={handleBackButton}
           onSwapLayout={() => setSwapLayout(v => !v)}
           onToggleSliders={() => setSlidersOpen(v => !v)}
-          onToggleSettings={() => setShowSettings(v => !v)}
+          onToggleCompare={handleCompareButton}
           slidersOpen={slidersOpen}
-          settingsOpen={showSettings}
+          cameraIIEnabled={cameraIIEnabled}
         />
 
         <ARSettingsSliders
@@ -320,14 +289,6 @@ export default function Page() {
           onSettingsChangeII={updateSettingsII}
           show={slidersOpen}
           isDualMode={cameraIIEnabled}
-        />
-
-        <SettingsPanel
-          show={showSettings}
-          onClose={() => setShowSettings(false)}
-          cameraIIEnabled={cameraIIEnabled}
-          onToggleCompare={handleCompareButton}
-          onRefreshCamera={startCameras}
         />
 
         <LoadingScreen show={!camerasReady && !error} />
