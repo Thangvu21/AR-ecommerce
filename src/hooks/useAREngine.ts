@@ -15,6 +15,14 @@ import type {
 } from '@/lib/ar/types';
 import { DEFAULT_AR_SETTINGS } from '@/lib/ar/types';
 
+export async function preloadARModel(config?: Partial<AREngineConfig>): Promise<void> {
+  return DetectorManager.preload(config);
+}
+
+export function isARModelPreloaded(): boolean {
+  return DetectorManager.isModelPreloaded();
+}
+
 const initialState: AREngineState = {
   isLoading: false,
   isDetecting: false,

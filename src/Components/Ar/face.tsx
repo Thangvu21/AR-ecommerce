@@ -5,6 +5,7 @@ import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-converter';
 import '@tensorflow/tfjs-backend-webgl';
 
+import { preloadARModel } from '@/hooks/useAREngine';
 import { MyColorPickerComponent } from "./color";
 import { useCameraManager } from './hooks/useCameraManager';
 import { useProductManager } from './hooks/useProductManager';
@@ -15,7 +16,15 @@ import { ControlPanel } from './components/ControlPanel';
 import { ARSettingsSliders } from './components/ARSettingsSliders';
 import { SettingsPanel } from './components/SettingsPanel';
 import { LoadingScreen, ErrorScreen } from './components/LoadingAndError';
-import type { ARSettings } from './types';
+import type { ARSettings, ARModelSettings } from './types';
+
+const DEFAULT_MODEL_SETTINGS: ARModelSettings = {
+  scale: 100,
+  offsetX: 50,
+  offsetY: 50,
+  opacity: 100,
+  color: "#aabbcc",
+};
 
 export default function Page() {
   const router = useRouter();
@@ -35,12 +44,8 @@ export default function Page() {
   const [showHatListII, setShowHatListII] = useState(false);
 
   const [arSettings, setArSettings] = useState<ARSettings>({
-    scale: 180,
-    offsetX: 50,
-    offsetY: 50,
-    opacity: 100,
-    colorI: "#aabbcc",
-    colorII: "#aabbcc",
+    modelI: { ...DEFAULT_MODEL_SETTINGS },
+    modelII: { ...DEFAULT_MODEL_SETTINGS },
   });
 
   const { videoIRef, videoIIRef, camerasReady, error, startCameras, stopStreams } = 
@@ -64,6 +69,8 @@ export default function Page() {
     toggleARI,
     toggleARII,
     resetAR,
+    setSettingsI,
+    setSettingsII,
   } = useARControls(productGlassesList, productHatList);
 
   const handleBackButton = () => {
@@ -71,16 +78,100 @@ export default function Page() {
     stopStreams();
   };
 
+  const resetSettingsToDefault = () => {
+    const defaultEngineSettings = {
+      scale: DEFAULT_MODEL_SETTINGS.scale,
+      offsetX: DEFAULT_MODEL_SETTINGS.offsetX,
+      offsetY: DEFAULT_MODEL_SETTINGS.offsetY,
+      opacity: DEFAULT_MODEL_SETTINGS.opacity,
+    };
+    setSettingsI(defaultEngineSettings);
+    setSettingsII(defaultEngineSettings);
+    setArSettings({
+      modelI: { ...DEFAULT_MODEL_SETTINGS },
+      modelII: { ...DEFAULT_MODEL_SETTINGS },
+    });
+  };
+
+  const resetSettingsI = () => {
+    const defaultEngineSettings = {
+      scale: DEFAULT_MODEL_SETTINGS.scale,
+      offsetX: DEFAULT_MODEL_SETTINGS.offsetX,
+      offsetY: DEFAULT_MODEL_SETTINGS.offsetY,
+      opacity: DEFAULT_MODEL_SETTINGS.opacity,
+    };
+    setSettingsI(defaultEngineSettings);
+    setArSettings(prev => ({ ...prev, modelI: { ...DEFAULT_MODEL_SETTINGS } }));
+  };
+
+  const resetSettingsII = () => {
+    const defaultEngineSettings = {
+      scale: DEFAULT_MODEL_SETTINGS.scale,
+      offsetX: DEFAULT_MODEL_SETTINGS.offsetX,
+      offsetY: DEFAULT_MODEL_SETTINGS.offsetY,
+      opacity: DEFAULT_MODEL_SETTINGS.opacity,
+    };
+    setSettingsII(defaultEngineSettings);
+    setArSettings(prev => ({ ...prev, modelII: { ...DEFAULT_MODEL_SETTINGS } }));
+  };
+
   const handleCompareButton = () => {
     setCameraIIEnabled(!cameraIIEnabled);
     resetAR();
+    resetSettingsToDefault();
     setShowColorPickerI(false);
     setShowColorPickerII(false);
   };
 
-  const updateARSettings = (updates: Partial<ARSettings>) => {
-    setArSettings(prev => ({ ...prev, ...updates }));
+  const updateSettingsI = (updates: Partial<ARModelSettings>) => {
+    setArSettings(prev => {
+      const newModelI = { ...prev.modelI, ...updates };
+      setSettingsI({
+        scale: newModelI.scale,
+        offsetX: newModelI.offsetX,
+        offsetY: newModelI.offsetY,
+        opacity: newModelI.opacity,
+      });
+      return { ...prev, modelI: newModelI };
+    });
   };
+
+  const updateSettingsII = (updates: Partial<ARModelSettings>) => {
+    setArSettings(prev => {
+      const newModelII = { ...prev.modelII, ...updates };
+      setSettingsII({
+        scale: newModelII.scale,
+        offsetX: newModelII.offsetX,
+        offsetY: newModelII.offsetY,
+        opacity: newModelII.opacity,
+      });
+      return { ...prev, modelII: newModelII };
+    });
+  };
+
+  const onSelectGlassProductI = (index: number) => {
+    resetSettingsI();
+    handleSelectedGlassProductI(index);
+  };
+
+  const onSelectGlassProductII = (index: number) => {
+    resetSettingsII();
+    handleSelectedGlassProductII(index);
+  };
+
+  const onSelectHatProductI = (index: number) => {
+    resetSettingsI();
+    handleSelectedHatProductI(index);
+  };
+
+  const onSelectHatProductII = (index: number) => {
+    resetSettingsII();
+    handleSelectedHatProductII(index);
+  };
+
+  useEffect(() => {
+    preloadARModel().catch(console.error);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -107,15 +198,15 @@ export default function Page() {
     <>
       <div className="relative w-full h-screen bg-black overflow-hidden">
         <MyColorPickerComponent
-          color={arSettings.colorI}
-          setColor={(color) => updateARSettings({ colorI: color })}
+          color={arSettings.modelI.color}
+          setColor={(color) => updateSettingsI({ color })}
           showColorPicker={showColorPickerI}
           setShowColorPicker={setShowColorPickerI}
           name="Model I"
         />
         <MyColorPickerComponent
-          color={arSettings.colorII}
-          setColor={(color) => updateARSettings({ colorII: color })}
+          color={arSettings.modelII.color}
+          setColor={(color) => updateSettingsII({ color })}
           showColorPicker={showColorPickerII}
           setShowColorPicker={setShowColorPickerII}
           name="Model II"
@@ -155,10 +246,10 @@ export default function Page() {
                 onToggleGlassListII={() => setShowGlassListII(v => !v)}
                 onToggleHatListI={() => setShowHatListI(v => !v)}
                 onToggleHatListII={() => setShowHatListII(v => !v)}
-                onSelectGlassProductI={handleSelectedGlassProductI}
-                onSelectGlassProductII={handleSelectedGlassProductII}
-                onSelectHatProductI={handleSelectedHatProductI}
-                onSelectHatProductII={handleSelectedHatProductII}
+                onSelectGlassProductI={onSelectGlassProductI}
+                onSelectGlassProductII={onSelectGlassProductII}
+                onSelectHatProductI={onSelectHatProductI}
+                onSelectHatProductII={onSelectHatProductII}
                 onToggleARI={toggleARI}
                 onToggleARII={toggleARII}
                 showColorPickerI={showColorPickerI}
@@ -179,8 +270,8 @@ export default function Page() {
                 showHatList={showHatListI}
                 onToggleGlassList={() => setShowGlassListI(v => !v)}
                 onToggleHatList={() => setShowHatListI(v => !v)}
-                onSelectGlassProduct={handleSelectedGlassProductI}
-                onSelectHatProduct={handleSelectedHatProductI}
+                onSelectGlassProduct={onSelectGlassProductI}
+                onSelectHatProduct={onSelectHatProductI}
                 onToggleAR={toggleARI}
                 onToggleCompare={handleCompareButton}
                 showColorPicker={showColorPickerI}
@@ -201,8 +292,10 @@ export default function Page() {
 
         <ARSettingsSliders
           settings={arSettings}
-          onSettingsChange={updateARSettings}
+          onSettingsChangeI={updateSettingsI}
+          onSettingsChangeII={updateSettingsII}
           show={slidersOpen}
+          isDualMode={cameraIIEnabled}
         />
 
         <SettingsPanel

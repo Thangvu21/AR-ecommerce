@@ -7,8 +7,8 @@ import type { ARProductMetadata } from './types';
 export const PRODUCT_METADATA_MAP: Record<string, ARProductMetadata> = {
   // Hat Products
   'hat_8': {
-    eyeDistanceDivisor: 4500,
-    initAdjustPosition: { x: 0, y: 0, z: 0 },
+    eyeDistanceDivisor: 3000,
+    initAdjustPosition: { x: 0, y: 0, z: -2.5 },
     initAdjustRotation: { x: 0, y: 0, z: 0 }
   },
 

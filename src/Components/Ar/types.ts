@@ -38,11 +38,15 @@ export interface UIState {
   showHatListII: boolean;
 }
 
-export interface ARSettings {
+export interface ARModelSettings {
   scale: number;
   offsetX: number;
   offsetY: number;
   opacity: number;
-  colorI: string;
-  colorII: string;
+  color: string;
+}
+
+export interface ARSettings {
+  modelI: ARModelSettings;
+  modelII: ARModelSettings;
 }

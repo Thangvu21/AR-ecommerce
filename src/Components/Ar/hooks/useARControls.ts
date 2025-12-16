@@ -204,6 +204,14 @@ export function useARControls(productGlassesList: Product[], productHatList: Pro
     };
   }, [arEnabledII]);
 
+  const setSettingsI = useCallback((settings: Parameters<typeof arEngineI.setSettings>[0]) => {
+    arEngineIRef.current.setSettings(settings);
+  }, []);
+
+  const setSettingsII = useCallback((settings: Parameters<typeof arEngineII.setSettings>[0]) => {
+    arEngineIIRef.current.setSettings(settings);
+  }, []);
+
   return {
     stateI: arEngineI.state,
     stateII: arEngineII.state,
@@ -222,5 +230,7 @@ export function useARControls(productGlassesList: Product[], productHatList: Pro
     toggleARI,
     toggleARII,
     resetAR,
+    setSettingsI,
+    setSettingsII,
   };
 }
