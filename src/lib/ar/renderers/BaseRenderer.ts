@@ -27,6 +27,7 @@ export abstract class BaseRenderer implements IARRenderer {
       canvas,
       alpha: true,
       antialias: true,
+      preserveDrawingBuffer: true,
     });
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
